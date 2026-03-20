@@ -1,8 +1,10 @@
+import asyncio
 import json
 import logging
+import uuid
 from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.database import async_session
 from app.models import Server, Metric, Container
 from app.schemas.ws_message import SystemSnapshot
@@ -14,6 +16,14 @@ router = APIRouter()
 
 # Track connected agents: agent_id -> WebSocket
 connected_agents: dict[str, WebSocket] = {}
+
+# Track last snapshot time per agent
+agent_last_seen: dict[str, float] = {}
+
+# Pending log requests: request_id -> (asyncio.Future, created_at)
+pending_log_requests: dict[str, asyncio.Future] = {}
+
+AGENT_TIMEOUT_SECONDS = 60
 
 
 @router.websocket("/ws/agent")
@@ -30,6 +40,7 @@ async def agent_websocket(websocket: WebSocket):
                 snapshot = SystemSnapshot(**data["payload"])
                 agent_id = snapshot.agent_id
                 connected_agents[agent_id] = websocket
+                agent_last_seen[agent_id] = datetime.utcnow().timestamp()
 
                 await _process_snapshot(snapshot)
 
@@ -41,9 +52,22 @@ async def agent_websocket(websocket: WebSocket):
                         "cpu_percent": snapshot.cpu.usage_percent,
                         "memory_percent": snapshot.memory.usage_percent,
                         "disk_percent": snapshot.disk.usage_percent,
-                        "containers": [c.model_dump() for c in snapshot.containers],
+                        "net_bytes_sent": snapshot.network.bytes_sent if snapshot.network else 0,
+                        "net_bytes_recv": snapshot.network.bytes_recv if snapshot.network else 0,
+                        "load1": snapshot.load.load1 if snapshot.load else 0.0,
+                        "load5": snapshot.load.load5 if snapshot.load else 0.0,
+                        "load15": snapshot.load.load15 if snapshot.load else 0.0,
+                        "processes": [p.model_dump() for p in snapshot.processes] if snapshot.processes else [],
+                        "updates": snapshot.updates.model_dump() if snapshot.updates else None,
+                        "containers": [c.model_dump() for c in snapshot.containers] if snapshot.containers else [],
                     },
                 })
+
+            elif msg_type == "container_logs_response":
+                payload = data.get("payload", {})
+                request_id = payload.get("request_id")
+                if request_id and request_id in pending_log_requests:
+                    pending_log_requests[request_id].set_result(payload)
 
             elif msg_type == "pong":
                 pass
@@ -51,6 +75,7 @@ async def agent_websocket(websocket: WebSocket):
     except WebSocketDisconnect:
         if agent_id:
             connected_agents.pop(agent_id, None)
+            agent_last_seen.pop(agent_id, None)
             await _mark_offline(agent_id)
             await broadcast_to_dashboards({
                 "type": "server_status",
@@ -64,6 +89,33 @@ async def agent_websocket(websocket: WebSocket):
         logger.error(f"Agent WS error: {e}")
         if agent_id:
             connected_agents.pop(agent_id, None)
+
+
+async def request_container_logs(agent_id: str, container_id: str, lines: int = 100) -> dict:
+    ws = connected_agents.get(agent_id)
+    if not ws:
+        return {"logs": "", "error": "Agent not connected"}
+
+    request_id = str(uuid.uuid4())
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    pending_log_requests[request_id] = future
+
+    try:
+        await ws.send_json({
+            "type": "container_logs_request",
+            "payload": {
+                "container_id": container_id,
+                "request_id": request_id,
+                "lines": lines,
+            },
+        })
+        result = await asyncio.wait_for(future, timeout=10.0)
+        return result
+    except asyncio.TimeoutError:
+        return {"logs": "", "error": "Timeout waiting for agent response"}
+    finally:
+        pending_log_requests.pop(request_id, None)
 
 
 async def send_command_to_agent(agent_id: str, command: dict) -> bool:
@@ -111,35 +163,73 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                 memory_used_bytes=snapshot.memory.used_bytes,
                 disk_percent=snapshot.disk.usage_percent,
                 disk_used_bytes=snapshot.disk.used_bytes,
+                net_bytes_sent=snapshot.network.bytes_sent if snapshot.network else 0,
+                net_bytes_recv=snapshot.network.bytes_recv if snapshot.network else 0,
+                load1=snapshot.load.load1 if snapshot.load else 0.0,
+                load5=snapshot.load.load5 if snapshot.load else 0.0,
+                load15=snapshot.load.load15 if snapshot.load else 0.0,
             )
             session.add(metric)
 
+            # Remove stale containers, then upsert current ones
+            await session.execute(
+                delete(Container).where(Container.server_id == snapshot.agent_id)
+            )
+
             for c in snapshot.containers:
-                result = await session.execute(
-                    select(Container).where(
-                        Container.id == c.id, Container.server_id == snapshot.agent_id
+                session.add(
+                    Container(
+                        id=c.id,
+                        server_id=snapshot.agent_id,
+                        name=c.name,
+                        image=c.image,
+                        state=c.state,
+                        status=c.status,
+                        created=datetime.utcfromtimestamp(c.created) if c.created else None,
+                        updated_at=now,
                     )
                 )
-                existing = result.scalar_one_or_none()
-                if existing:
-                    existing.name = c.name
-                    existing.image = c.image
-                    existing.state = c.state
-                    existing.status = c.status
-                    existing.updated_at = now
-                else:
-                    session.add(
-                        Container(
-                            id=c.id,
-                            server_id=snapshot.agent_id,
-                            name=c.name,
-                            image=c.image,
-                            state=c.state,
-                            status=c.status,
-                            created=datetime.utcfromtimestamp(c.created) if c.created else None,
-                            updated_at=now,
-                        )
-                    )
+
+
+async def check_agent_timeouts():
+    """Background task: mark agents as offline if no snapshot received within timeout."""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            now = datetime.utcnow().timestamp()
+            stale_agents = [
+                aid for aid, last in agent_last_seen.items()
+                if now - last > AGENT_TIMEOUT_SECONDS
+            ]
+            for agent_id in stale_agents:
+                logger.warning(f"Agent {agent_id} timed out (no snapshot in {AGENT_TIMEOUT_SECONDS}s)")
+                ws = connected_agents.pop(agent_id, None)
+                agent_last_seen.pop(agent_id, None)
+                if ws:
+                    try:
+                        await ws.close()
+                    except Exception:
+                        pass
+                await _mark_offline(agent_id)
+                await broadcast_to_dashboards({
+                    "type": "server_status",
+                    "payload": {
+                        "server_id": agent_id,
+                        "status": "offline",
+                        "last_seen": now,
+                    },
+                })
+
+            # Clean stale pending log requests (>15s old)
+            stale_requests = [
+                rid for rid, fut in pending_log_requests.items()
+                if fut.done()
+            ]
+            for rid in stale_requests:
+                pending_log_requests.pop(rid, None)
+
+        except Exception as e:
+            logger.error(f"Agent timeout check failed: {e}")
 
 
 async def _mark_offline(agent_id: str):

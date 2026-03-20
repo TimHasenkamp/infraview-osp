@@ -19,3 +19,8 @@ class Metric(Base):
     memory_used_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     disk_percent: Mapped[float] = mapped_column(Float, nullable=False)
     disk_used_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    net_bytes_sent: Mapped[int] = mapped_column(Integer, default=0)
+    net_bytes_recv: Mapped[int] = mapped_column(Integer, default=0)
+    load1: Mapped[float] = mapped_column(Float, default=0.0)
+    load5: Mapped[float] = mapped_column(Float, default=0.0)
+    load15: Mapped[float] = mapped_column(Float, default=0.0)

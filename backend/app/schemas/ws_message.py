@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.schemas.server import CPUMetrics, MemoryMetrics, DiskMetrics, ContainerSchema
+from app.schemas.server import CPUMetrics, MemoryMetrics, DiskMetrics, NetworkMetrics, LoadMetrics, ProcessSchema, UpdatesInfoSchema, ContainerSchema
 
 
 class SystemSnapshot(BaseModel):
@@ -9,7 +9,11 @@ class SystemSnapshot(BaseModel):
     cpu: CPUMetrics
     memory: MemoryMetrics
     disk: DiskMetrics
-    containers: list[ContainerSchema] = []
+    network: NetworkMetrics | None = None
+    load: LoadMetrics | None = None
+    processes: list[ProcessSchema] | None = []
+    updates: UpdatesInfoSchema | None = None
+    containers: list[ContainerSchema] | None = []
 
 
 class AgentMessage(BaseModel):

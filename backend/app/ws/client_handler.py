@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +47,25 @@ async def broadcast_to_dashboards(message: dict):
         return
     dead = set()
     payload = json.dumps(message)
-    for client in dashboard_clients:
+    for client in list(dashboard_clients):
         try:
             await client.send_text(payload)
         except Exception:
             dead.add(client)
     dashboard_clients.difference_update(dead)
+
+
+async def ping_dashboard_clients():
+    """Background task: send ping to all dashboard clients every 20s."""
+    while True:
+        await asyncio.sleep(20)
+        dead = set()
+        for client in list(dashboard_clients):
+            try:
+                if client.client_state == WebSocketState.CONNECTED:
+                    await client.send_json({"type": "ping"})
+            except Exception:
+                dead.add(client)
+        if dead:
+            dashboard_clients.difference_update(dead)
+            logger.info(f"Removed {len(dead)} dead dashboard client(s). Total: {len(dashboard_clients)}")

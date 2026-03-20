@@ -1,71 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertForm } from "../_components/alert-form";
 import { AlertList } from "../_components/alert-list";
+import { getAlerts, createAlert, updateAlert, deleteAlert } from "../_lib/api-client";
+import { toast } from "sonner";
 import type { AlertRule } from "../_lib/types";
 
-const MOCK_RULES: AlertRule[] = [
-  {
-    id: 1,
-    server_id: null,
-    metric: "cpu_percent",
-    operator: ">",
-    threshold: 90,
-    severity: "critical",
-    notify_email: "admin@example.com",
-    notify_webhook: null,
-    enabled: true,
-    cooldown_seconds: 300,
-  },
-  {
-    id: 2,
-    server_id: "db-prod2",
-    metric: "memory_percent",
-    operator: ">",
-    threshold: 85,
-    severity: "warning",
-    notify_email: null,
-    notify_webhook: null,
-    enabled: true,
-    cooldown_seconds: 600,
-  },
-  {
-    id: 3,
-    server_id: null,
-    metric: "disk_percent",
-    operator: ">",
-    threshold: 80,
-    severity: "warning",
-    notify_email: "admin@example.com",
-    notify_webhook: "https://hooks.slack.com/example",
-    enabled: false,
-    cooldown_seconds: 300,
-  },
-];
-
 export default function AlertsPage() {
-  const [rules, setRules] = useState<AlertRule[]>(MOCK_RULES);
+  const [rules, setRules] = useState<AlertRule[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleCreate = (rule: Omit<AlertRule, "id">) => {
-    const newRule: AlertRule = {
-      ...rule,
-      id: Math.max(0, ...rules.map((r) => r.id)) + 1,
-    };
-    setRules((prev) => [...prev, newRule]);
+  useEffect(() => {
+    getAlerts()
+      .then(setRules)
+      .catch(() => toast.error("Failed to load alert rules"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleCreate = async (rule: Omit<AlertRule, "id">) => {
+    try {
+      const newRule = await createAlert(rule);
+      setRules((prev) => [...prev, newRule]);
+      toast.success("Alert rule created");
+    } catch {
+      toast.error("Failed to create alert rule");
+    }
   };
 
-  const handleToggle = (id: number, enabled: boolean) => {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, enabled } : r))
-    );
+  const handleToggle = async (id: number, enabled: boolean) => {
+    try {
+      await updateAlert(id, { enabled });
+      setRules((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, enabled } : r))
+      );
+    } catch {
+      toast.error("Failed to update alert rule");
+    }
   };
 
-  const handleDelete = (id: number) => {
-    setRules((prev) => prev.filter((r) => r.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteAlert(id);
+      setRules((prev) => prev.filter((r) => r.id !== id));
+      toast.success("Alert rule deleted");
+    } catch {
+      toast.error("Failed to delete alert rule");
+    }
   };
 
   return (
@@ -82,7 +67,15 @@ export default function AlertsPage() {
           </div>
           <AlertForm onSubmit={handleCreate} />
         </div>
-        <AlertList rules={rules} onToggle={handleToggle} onDelete={handleDelete} />
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : (
+          <AlertList rules={rules} onToggle={handleToggle} onDelete={handleDelete} />
+        )}
       </main>
     </div>
   );

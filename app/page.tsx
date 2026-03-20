@@ -1,9 +1,11 @@
 import { Header } from "./_components/header";
 import { ServerGrid } from "./_components/server-grid";
-import { MOCK_SERVERS } from "./_lib/mock-data";
+import { fetchServers } from "./_lib/server-api";
+import { normalizeServer } from "./_lib/utils";
 
-export default function DashboardPage() {
-  const servers = MOCK_SERVERS;
+export default async function DashboardPage() {
+  const rawServers = await fetchServers();
+  const servers = rawServers.map(normalizeServer);
   const onlineCount = servers.filter((s) => s.status === "online").length;
 
   return (

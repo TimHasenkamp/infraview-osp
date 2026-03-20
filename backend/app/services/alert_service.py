@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from sqlalchemy import select
@@ -10,6 +11,10 @@ from app.services.notification_service import send_email_alert, send_webhook_ale
 logger = logging.getLogger(__name__)
 
 _last_fired: dict[int, datetime] = {}
+_last_fired_lock = asyncio.Lock()
+
+VALID_OPERATORS = {">", "<"}
+VALID_METRICS = {"cpu_percent", "memory_percent", "disk_percent"}
 
 
 def _get_metric_value(snapshot: SystemSnapshot, metric: str) -> float | None:
@@ -34,6 +39,14 @@ async def check_alerts(snapshot: SystemSnapshot):
     now = datetime.utcnow()
 
     for rule in rules:
+        if rule.metric not in VALID_METRICS:
+            logger.warning(f"Alert rule {rule.id} has invalid metric: {rule.metric}, skipping")
+            continue
+
+        if rule.operator not in VALID_OPERATORS:
+            logger.warning(f"Alert rule {rule.id} has invalid operator: {rule.operator}, skipping")
+            continue
+
         value = _get_metric_value(snapshot, rule.metric)
         if value is None:
             continue
@@ -44,11 +57,12 @@ async def check_alerts(snapshot: SystemSnapshot):
         if not triggered:
             continue
 
-        last = _last_fired.get(rule.id)
-        if last and (now - last) < timedelta(seconds=rule.cooldown_seconds):
-            continue
+        async with _last_fired_lock:
+            last = _last_fired.get(rule.id)
+            if last and (now - last) < timedelta(seconds=rule.cooldown_seconds):
+                continue
+            _last_fired[rule.id] = now
 
-        _last_fired[rule.id] = now
         message = f"{rule.metric} is {value:.1f}% (threshold: {rule.threshold}%) on {snapshot.hostname}"
 
         async with async_session() as session:
@@ -79,10 +93,13 @@ async def check_alerts(snapshot: SystemSnapshot):
             },
         })
 
+        # Send notifications, log failures
         if rule.notify_email:
-            await send_email_alert(rule.notify_email, message, rule.severity)
+            success = await send_email_alert(rule.notify_email, message, rule.severity)
+            if not success:
+                logger.error(f"Email notification failed for alert rule {rule.id}")
         if rule.notify_webhook:
-            await send_webhook_alert(rule.notify_webhook, {
+            success = await send_webhook_alert(rule.notify_webhook, {
                 "server_id": snapshot.agent_id,
                 "metric": rule.metric,
                 "value": value,
@@ -90,5 +107,7 @@ async def check_alerts(snapshot: SystemSnapshot):
                 "severity": rule.severity,
                 "message": message,
             })
+            if not success:
+                logger.error(f"Webhook notification failed for alert rule {rule.id}")
 
         logger.warning(f"Alert fired: {message}")

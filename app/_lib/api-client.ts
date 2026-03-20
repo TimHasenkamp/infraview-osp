@@ -63,3 +63,17 @@ export async function deleteAlert(id: number): Promise<void> {
 export async function getAlertEvents(): Promise<AlertEvent[]> {
   return apiFetch<AlertEvent[]>("alerts/events");
 }
+
+export async function getContainerLogs(
+  serverId: string,
+  containerId: string,
+  lines = 100
+): Promise<string> {
+  const result = await apiFetch<{ logs: string; error?: string | null }>(
+    `servers/${serverId}/containers/${containerId}/logs?lines=${lines}`
+  );
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.logs;
+}

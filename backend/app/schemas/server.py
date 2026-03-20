@@ -22,6 +22,42 @@ class DiskMetrics(BaseModel):
     path: str
 
 
+class NetworkMetrics(BaseModel):
+    bytes_sent: int
+    bytes_recv: int
+    packets_sent: int
+    packets_recv: int
+
+
+class LoadMetrics(BaseModel):
+    load1: float
+    load5: float
+    load15: float
+
+
+class PackageUpdateSchema(BaseModel):
+    name: str
+    current_version: str
+    new_version: str
+    security: bool
+
+
+class UpdatesInfoSchema(BaseModel):
+    available: int = 0
+    security: int = 0
+    packages: list[PackageUpdateSchema] = []
+    last_check: int = 0
+
+
+class ProcessSchema(BaseModel):
+    pid: int
+    name: str
+    cpu_percent: float
+    mem_percent: float
+    mem_bytes: int
+    user: str
+
+
 class ContainerSchema(BaseModel):
     id: str
     name: str
@@ -40,6 +76,8 @@ class ServerResponse(BaseModel):
     cpu: CPUMetrics | None = None
     memory: MemoryMetrics | None = None
     disk: DiskMetrics | None = None
+    network: NetworkMetrics | None = None
+    load: LoadMetrics | None = None
     containers: list[ContainerSchema] = []
 
     model_config = {"from_attributes": True}

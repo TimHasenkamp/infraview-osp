@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from app.config import settings
 from app.database import init_db, async_session
 from app.models import Metric
@@ -32,11 +32,38 @@ async def prune_old_metrics():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: init DB and verify connectivity
     await init_db()
-    logger.info("Database initialized")
-    pruning_task = asyncio.create_task(prune_old_metrics())
+    try:
+        async with async_session() as session:
+            await session.execute(text("SELECT 1"))
+        logger.info("Database initialized and verified")
+    except Exception as e:
+        logger.error(f"Database connectivity check failed: {e}")
+        raise
+
+    # Start background tasks
+    tasks = [
+        asyncio.create_task(prune_old_metrics()),
+        asyncio.create_task(agent_handler.check_agent_timeouts()),
+        asyncio.create_task(client_handler.ping_dashboard_clients()),
+    ]
+
     yield
-    pruning_task.cancel()
+
+    # Shutdown: notify connected agents
+    for agent_id, ws in list(agent_handler.connected_agents.items()):
+        try:
+            await ws.close()
+            logger.info(f"Closed agent connection: {agent_id}")
+        except Exception:
+            pass
+    agent_handler.connected_agents.clear()
+    agent_handler.agent_last_seen.clear()
+
+    # Cancel background tasks
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(title="InfraView API", version="1.0.0", lifespan=lifespan)

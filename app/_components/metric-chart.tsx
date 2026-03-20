@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   AreaChart,
   Area,
@@ -13,38 +13,142 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { generateMockHistory } from "../_lib/mock-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getMetrics } from "../_lib/api-client";
+import { useWSContext } from "../_providers/websocket-provider";
+import { formatBytes } from "../_lib/utils";
 import { TIME_RANGES } from "../_lib/constants";
+import type { MetricSnapshot } from "../_lib/types";
 
 interface MetricChartProps {
   serverId: string;
 }
 
+const METRIC_SERIES = [
+  { key: "cpu_percent", name: "CPU", color: "#10b981", unit: "%", default: true },
+  { key: "memory_percent", name: "RAM", color: "#f59e0b", unit: "%", default: true },
+  { key: "disk_percent", name: "Disk", color: "#6366f1", unit: "%", default: true },
+  { key: "load1", name: "Load 1m", color: "#ec4899", unit: "", default: false },
+  { key: "load5", name: "Load 5m", color: "#f43f5e", unit: "", default: false },
+  { key: "net_bytes_recv", name: "Net In", color: "#06b6d4", unit: "bytes", default: false },
+  { key: "net_bytes_sent", name: "Net Out", color: "#8b5cf6", unit: "bytes", default: false },
+] as const;
+
+type SeriesKey = typeof METRIC_SERIES[number]["key"];
+
 export function MetricChart({ serverId }: MetricChartProps) {
   const [range, setRange] = useState("1h");
-
-  const data = useMemo(() => {
-    const hours = TIME_RANGES.find((r) => r.value === range)?.seconds ?? 3600;
-    return generateMockHistory(hours / 3600);
-  }, [range]);
-
-  const chartData = useMemo(
-    () =>
-      data.map((d) => ({
-        ...d,
-        time: new Date(d.timestamp * 1000).toLocaleTimeString("de-DE", {
-          hour: "2-digit",
-          minute: "2-digit",
-          ...(range === "7d" ? { day: "2-digit", month: "2-digit" } : {}),
-        }),
-      })),
-    [data, range]
+  const [data, setData] = useState<MetricSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [visible, setVisible] = useState<Set<SeriesKey>>(
+    () => new Set(METRIC_SERIES.filter((s) => s.default).map((s) => s.key))
   );
+
+  const toggleSeries = useCallback((key: SeriesKey) => {
+    setVisible((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size > 1) next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    getMetrics(serverId, range)
+      .then((metrics) => {
+        if (!cancelled) {
+          setData(metrics);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [serverId, range]);
+
+  const { servers: wsUpdates } = useWSContext();
+  const lastWsTimestamp = useRef(0);
+
+  useEffect(() => {
+    const update = wsUpdates.get(serverId);
+    if (!update || loading) return;
+    if (update.timestamp <= lastWsTimestamp.current) return;
+    lastWsTimestamp.current = update.timestamp;
+
+    const newPoint: MetricSnapshot = {
+      timestamp: update.timestamp,
+      cpu_percent: update.cpu_percent,
+      memory_percent: update.memory_percent,
+      disk_percent: update.disk_percent,
+      net_bytes_sent: update.net_bytes_sent ?? 0,
+      net_bytes_recv: update.net_bytes_recv ?? 0,
+      load1: update.load1 ?? 0,
+      load5: update.load5 ?? 0,
+      load15: update.load15 ?? 0,
+    };
+
+    setData((prev) => {
+      const rangeSeconds = TIME_RANGES.find((r) => r.value === range)?.seconds ?? 3600;
+      const cutoff = update.timestamp - rangeSeconds;
+      const trimmed = prev.filter((p) => p.timestamp >= cutoff);
+      return [...trimmed, newPoint];
+    });
+  }, [wsUpdates, serverId, range, loading]);
+
+  // Convert cumulative network counters to per-second rates
+  const chartData = useMemo(() => {
+    if (data.length < 2) return data;
+    return data.map((point, i) => {
+      if (i === 0) return { ...point, net_bytes_recv: 0, net_bytes_sent: 0 };
+      const prev = data[i - 1];
+      const dt = point.timestamp - prev.timestamp;
+      if (dt <= 0) return { ...point, net_bytes_recv: 0, net_bytes_sent: 0 };
+      return {
+        ...point,
+        net_bytes_recv: Math.max(0, (point.net_bytes_recv - prev.net_bytes_recv) / dt),
+        net_bytes_sent: Math.max(0, (point.net_bytes_sent - prev.net_bytes_sent) / dt),
+      };
+    });
+  }, [data]);
+
+  const hasNetOrLoad = visible.has("net_bytes_recv") || visible.has("net_bytes_sent") || visible.has("load1") || visible.has("load5");
+  const hasPercent = visible.has("cpu_percent") || visible.has("memory_percent") || visible.has("disk_percent");
+
+  const formatTime = (ts: number) => {
+    const d = new Date(ts * 1000);
+    if (range === "7d") {
+      return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) +
+        " " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
+
+  const formatTooltipValue = (value: number, name: string) => {
+    const series = METRIC_SERIES.find((s) => s.name === name);
+    if (series?.unit === "bytes") return [`${formatBytes(value)}/s`, name];
+    if (series?.unit === "%") return [`${value.toFixed(1)}%`, name];
+    return [value.toFixed(2), name];
+  };
+
+  const activeSeries = METRIC_SERIES.filter((s) => visible.has(s.key));
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base">System Metrics</CardTitle>
           <Tabs value={range} onValueChange={setRange}>
             <TabsList className="h-8">
@@ -56,90 +160,119 @@ export function MetricChart({ serverId }: MetricChartProps) {
             </TabsList>
           </Tabs>
         </div>
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          {METRIC_SERIES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => toggleSeries(s.key)}
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-mono transition-colors ${
+                visible.has(s.key)
+                  ? "border-transparent text-white"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+              style={visible.has(s.key) ? { backgroundColor: s.color + "33", color: s.color, borderColor: s.color + "55" } : {}}
+            >
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: visible.has(s.key) ? s.color : "#71717a" }}
+              />
+              {s.name}
+            </button>
+          ))}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="memGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="diskGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis
-                dataKey="time"
-                tick={{ fontSize: 11, fill: "#71717a" }}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-                minTickGap={50}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fontSize: 11, fill: "#71717a" }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => `${v}%`}
-                width={45}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#18181b",
-                  border: "1px solid #3f3f46",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  fontFamily: "monospace",
-                }}
-                labelStyle={{ color: "#a1a1aa" }}
-                formatter={(value) => [
-                  `${Number(value).toFixed(1)}%`,
-                ]}
-              />
-              <Legend
-                wrapperStyle={{ fontSize: "12px", fontFamily: "monospace" }}
-              />
-              <Area
-                type="monotone"
-                dataKey="cpu_percent"
-                name="CPU"
-                stroke="#10b981"
-                fill="url(#cpuGradient)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3, strokeWidth: 0 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="memory_percent"
-                name="RAM"
-                stroke="#f59e0b"
-                fill="url(#memGradient)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3, strokeWidth: 0 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="disk_percent"
-                name="Disk"
-                stroke="#6366f1"
-                fill="url(#diskGradient)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3, strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <Skeleton className="h-full w-full" />
+          ) : error ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+              Failed to load metrics
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+              No metric data available for this time range
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }} throttleDelay={50}>
+                <defs>
+                  {METRIC_SERIES.map((s) => (
+                    <linearGradient key={s.key} id={`gradient-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={s.color} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={s.color} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis
+                  dataKey="timestamp"
+                  type="number"
+                  domain={["dataMin", "dataMax"]}
+                  tickFormatter={formatTime}
+                  tick={{ fontSize: 11, fill: "#71717a" }}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={60}
+                  scale="time"
+                />
+                <YAxis
+                  yAxisId="percent"
+                  domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: "#71717a" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${v}%`}
+                  width={45}
+                  hide={!hasPercent}
+                />
+                <YAxis
+                  yAxisId="raw"
+                  orientation="right"
+                  tick={{ fontSize: 11, fill: "#71717a" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => {
+                    const hasNet = visible.has("net_bytes_recv") || visible.has("net_bytes_sent");
+                    if (hasNet) return `${formatBytes(v)}/s`;
+                    return v.toFixed(1);
+                  }}
+                  width={55}
+                  hide={!hasNetOrLoad}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#18181b",
+                    border: "1px solid #3f3f46",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontFamily: "monospace",
+                    padding: "8px 12px",
+                  }}
+                  labelFormatter={formatTime}
+                  labelStyle={{ color: "#a1a1aa", marginBottom: "4px" }}
+                  itemStyle={{ padding: "1px 0" }}
+                  formatter={formatTooltipValue}
+                  isAnimationActive={false}
+                  cursor={{ stroke: "#71717a", strokeWidth: 1, strokeDasharray: "4 4" }}
+                />
+                {activeSeries.map((s) => (
+                  <Area
+                    key={s.key}
+                    type="monotone"
+                    dataKey={s.key}
+                    name={s.name}
+                    yAxisId={s.unit === "%" ? "percent" : "raw"}
+                    stroke={s.color}
+                    fill={`url(#gradient-${s.key})`}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 2, stroke: "#18181b" }}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </CardContent>
     </Card>

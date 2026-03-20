@@ -2,21 +2,40 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/infraview/agent/internal/collector"
 	"github.com/infraview/agent/internal/config"
 	"github.com/infraview/agent/internal/container"
+	"github.com/infraview/agent/internal/health"
 	"github.com/infraview/agent/internal/transport"
 )
 
+const (
+	collectTimeout   = 10 * time.Second
+	containerTimeout = 10 * time.Second
+	shutdownTimeout  = 5 * time.Second
+)
+
 func main() {
+	// Structured logging with zerolog
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05"}).
+		With().Timestamp().Caller().Logger()
+
 	cfg := config.Load()
-	log.Printf("InfraView Agent starting (id=%s, interval=%ds, backend=%s)", cfg.AgentID, cfg.Interval, cfg.BackendURL)
+	log.Info().
+		Str("agent_id", cfg.AgentID).
+		Int("interval", cfg.Interval).
+		Str("backend", cfg.BackendURL).
+		Msg("InfraView Agent starting")
 
 	hostname, _ := os.Hostname()
 	coll := collector.New(cfg.AgentID, hostname, cfg.DiskPath)
@@ -24,7 +43,7 @@ func main() {
 	var docker container.ContainerManager
 	dockerClient, err := container.NewDockerClient()
 	if err != nil {
-		log.Printf("Docker not available: %v (running without container monitoring)", err)
+		log.Warn().Err(err).Msg("Docker not available, running without container monitoring")
 		docker = container.NewStubClient()
 	} else {
 		docker = dockerClient
@@ -32,25 +51,50 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	onCommand := func(containerID, action string) {
-		log.Printf("Received command: %s container %s", action, containerID)
-		if err := docker.ContainerAction(ctx, containerID, action); err != nil {
-			log.Printf("Container action failed: %v", err)
+		log.Info().Str("container", containerID).Str("action", action).Msg("Received container command")
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, containerTimeout)
+		defer cmdCancel()
+		if err := docker.ContainerAction(cmdCtx, containerID, action); err != nil {
+			log.Error().Err(err).Str("container", containerID).Str("action", action).Msg("Container action failed")
 		} else {
-			log.Printf("Container action succeeded: %s %s", action, containerID)
+			log.Info().Str("container", containerID).Str("action", action).Msg("Container action succeeded")
 		}
 	}
 
-	wsClient := transport.NewWSClient(cfg.BackendURL, onCommand)
+	var wsClient *transport.WSClient
+
+	onLogs := func(containerID, requestID string, lines int) {
+		log.Info().Str("container", containerID).Str("request_id", requestID).Int("lines", lines).Msg("Received logs request")
+		logCtx, logCancel := context.WithTimeout(ctx, collectTimeout)
+		defer logCancel()
+		logs, err := docker.GetContainerLogs(logCtx, containerID, lines)
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+			log.Error().Err(err).Str("container", containerID).Msg("Container logs failed")
+		}
+		if err := wsClient.SendLogsResponse(requestID, logs, errMsg); err != nil {
+			log.Error().Err(err).Msg("Send logs response failed")
+		}
+	}
+
+	wsClient = transport.NewWSClient(cfg.BackendURL, onCommand, onLogs)
+
+	startTime := time.Now()
+	health.StartHealthServer(":8081", cfg.AgentID, startTime, wsClient.IsConnected)
 
 	if err := wsClient.Connect(ctx); err != nil {
-		log.Fatalf("Failed to connect: %v", err)
+		log.Fatal().Err(err).Msg("Failed to connect")
 	}
-	defer wsClient.Close()
 
-	go wsClient.ListenForCommands(ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		wsClient.ListenForCommands(ctx)
+	}()
 
 	ticker := time.NewTicker(time.Duration(cfg.Interval) * time.Second)
 	defer ticker.Stop()
@@ -58,31 +102,56 @@ func main() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Printf("Agent running. Collecting every %ds", cfg.Interval)
+	log.Info().Int("interval_s", cfg.Interval).Msg("Agent running")
+
+	containerErrLogged := false
 
 	for {
 		select {
 		case <-ticker.C:
+			_, collectCancel := context.WithTimeout(ctx, collectTimeout)
 			snapshot, err := coll.Collect()
+			collectCancel()
 			if err != nil {
-				log.Printf("Collection error: %v", err)
+				log.Error().Err(err).Msg("Collection error")
 				continue
 			}
 
-			containers, err := docker.ListContainers(ctx)
+			containerCtx, containerCancel := context.WithTimeout(ctx, containerTimeout)
+			containers, err := docker.ListContainers(containerCtx)
+			containerCancel()
 			if err != nil {
-				log.Printf("Container list error: %v", err)
+				if !containerErrLogged {
+					log.Warn().Err(err).Msg("Container list error (suppressing further)")
+					containerErrLogged = true
+				}
 			} else {
 				snapshot.Containers = containers
+				containerErrLogged = false
 			}
 
 			if err := wsClient.SendSnapshot(snapshot); err != nil {
-				log.Printf("Send error: %v", err)
+				log.Error().Err(err).Msg("Send snapshot failed")
 			}
 
 		case sig := <-sigCh:
-			log.Printf("Received %v, shutting down", sig)
+			log.Info().Str("signal", sig.String()).Msg("Shutting down gracefully")
 			cancel()
+
+			done := make(chan struct{})
+			go func() {
+				wg.Wait()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				log.Info().Msg("All goroutines stopped")
+			case <-time.After(shutdownTimeout):
+				log.Warn().Msg("Shutdown timeout, forcing exit")
+			}
+
+			wsClient.Close()
 			return
 		}
 	}

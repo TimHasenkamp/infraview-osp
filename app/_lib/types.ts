@@ -19,6 +19,42 @@ export interface DiskMetrics {
   path: string;
 }
 
+export interface NetworkMetrics {
+  bytes_sent: number;
+  bytes_recv: number;
+  packets_sent: number;
+  packets_recv: number;
+}
+
+export interface LoadMetrics {
+  load1: number;
+  load5: number;
+  load15: number;
+}
+
+export interface PackageUpdate {
+  name: string;
+  current_version: string;
+  new_version: string;
+  security: boolean;
+}
+
+export interface UpdatesInfo {
+  available: number;
+  security: number;
+  packages: PackageUpdate[];
+  last_check: number;
+}
+
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  cpu_percent: number;
+  mem_percent: number;
+  mem_bytes: number;
+  user: string;
+}
+
 export interface ContainerInfo {
   id: string;
   name: string;
@@ -37,6 +73,22 @@ export interface Server {
   cpu: CPUMetrics;
   memory: MemoryMetrics;
   disk: DiskMetrics;
+  network: NetworkMetrics;
+  load: LoadMetrics;
+  containers: ContainerInfo[];
+}
+
+export interface ServerResponse {
+  id: string;
+  hostname: string;
+  status: "online" | "offline";
+  last_seen: number;
+  first_seen: number;
+  cpu: CPUMetrics | null;
+  memory: MemoryMetrics | null;
+  disk: DiskMetrics | null;
+  network: NetworkMetrics | null;
+  load: LoadMetrics | null;
   containers: ContainerInfo[];
 }
 
@@ -45,6 +97,11 @@ export interface MetricSnapshot {
   cpu_percent: number;
   memory_percent: number;
   disk_percent: number;
+  net_bytes_sent: number;
+  net_bytes_recv: number;
+  load1: number;
+  load5: number;
+  load15: number;
 }
 
 export interface AlertRule {

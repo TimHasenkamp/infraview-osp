@@ -3,21 +3,30 @@ package transport
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"math"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
+
 	"github.com/infraview/agent/internal/collector"
 )
 
+const (
+	pingInterval  = 15 * time.Second
+	readTimeout   = 30 * time.Second
+	writeTimeout  = 10 * time.Second
+)
+
 type WSClient struct {
-	url        string
-	conn       *websocket.Conn
-	mu         sync.Mutex
-	onCommand  func(containerID, action string)
-	connected  bool
+	url       string
+	conn      *websocket.Conn
+	mu        sync.Mutex
+	onCommand func(containerID, action string)
+	onLogs    func(containerID, requestID string, lines int)
+	connected bool
+	stopPing  chan struct{}
 }
 
 type wsMessage struct {
@@ -30,10 +39,17 @@ type containerCommand struct {
 	Action      string `json:"action"`
 }
 
-func NewWSClient(url string, onCommand func(containerID, action string)) *WSClient {
+type containerLogsRequest struct {
+	ContainerID string `json:"container_id"`
+	RequestID   string `json:"request_id"`
+	Lines       int    `json:"lines"`
+}
+
+func NewWSClient(url string, onCommand func(containerID, action string), onLogs func(containerID, requestID string, lines int)) *WSClient {
 	return &WSClient{
 		url:       url,
 		onCommand: onCommand,
+		onLogs:    onLogs,
 	}
 }
 
@@ -49,19 +65,63 @@ func (w *WSClient) Connect(ctx context.Context) error {
 		conn, _, err := websocket.DefaultDialer.DialContext(ctx, w.url, nil)
 		if err != nil {
 			delay := backoff(attempt)
-			log.Printf("Connection failed (attempt %d): %v. Retrying in %v", attempt+1, err, delay)
+			log.Warn().Err(err).Int("attempt", attempt+1).Dur("retry_in", delay).Msg("Connection failed")
 			attempt++
 			time.Sleep(delay)
 			continue
 		}
 
 		w.mu.Lock()
+		// Stop previous ping loop if any
+		if w.stopPing != nil {
+			close(w.stopPing)
+		}
 		w.conn = conn
 		w.connected = true
+		w.stopPing = make(chan struct{})
+		stopCh := w.stopPing
+
+		// Pong handler resets read deadline
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(readTimeout))
+		})
+		// Set initial read deadline
+		conn.SetReadDeadline(time.Now().Add(readTimeout))
+
 		w.mu.Unlock()
-		log.Printf("Connected to %s", w.url)
+
+		// Start ping loop
+		go w.pingLoop(conn, stopCh)
+
+		log.Info().Str("url", w.url).Msg("Connected")
 		attempt = 0
 		return nil
+	}
+}
+
+func (w *WSClient) pingLoop(conn *websocket.Conn, stop chan struct{}) {
+	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			w.mu.Lock()
+			if w.conn != conn {
+				w.mu.Unlock()
+				return
+			}
+			conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+			err := conn.WriteMessage(websocket.PingMessage, nil)
+			w.mu.Unlock()
+
+			if err != nil {
+				log.Warn().Err(err).Msg("Ping failed")
+				return
+			}
+		}
 	}
 }
 
@@ -78,12 +138,11 @@ func (w *WSClient) SendSnapshot(snapshot *collector.SystemSnapshot) error {
 		return err
 	}
 
-	msg := wsMessage{
+	w.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	return w.conn.WriteJSON(wsMessage{
 		Type:    "snapshot",
 		Payload: payload,
-	}
-
-	return w.conn.WriteJSON(msg)
+	})
 }
 
 func (w *WSClient) ListenForCommands(ctx context.Context) {
@@ -103,15 +162,20 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 			continue
 		}
 
+		// Read deadline is managed by pong handler
+		conn.SetReadDeadline(time.Now().Add(readTimeout))
 		_, rawMsg, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Read error: %v", err)
+			log.Warn().Err(err).Msg("Read error")
 			w.mu.Lock()
 			w.connected = false
+			if w.stopPing != nil {
+				close(w.stopPing)
+				w.stopPing = nil
+			}
 			w.conn = nil
 			w.mu.Unlock()
 
-			// Reconnect
 			if err := w.Connect(ctx); err != nil {
 				return
 			}
@@ -120,16 +184,47 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 
 		var msg wsMessage
 		if err := json.Unmarshal(rawMsg, &msg); err != nil {
+			log.Debug().Err(err).Msg("Invalid message JSON")
 			continue
 		}
 
-		if msg.Type == "container_command" && w.onCommand != nil {
-			var cmd containerCommand
-			if err := json.Unmarshal(msg.Payload, &cmd); err == nil {
-				w.onCommand(cmd.ContainerID, cmd.Action)
+		switch msg.Type {
+		case "container_command":
+			if w.onCommand != nil {
+				var cmd containerCommand
+				if err := json.Unmarshal(msg.Payload, &cmd); err == nil {
+					w.onCommand(cmd.ContainerID, cmd.Action)
+				}
+			}
+		case "container_logs_request":
+			if w.onLogs != nil {
+				var req containerLogsRequest
+				if err := json.Unmarshal(msg.Payload, &req); err == nil {
+					w.onLogs(req.ContainerID, req.RequestID, req.Lines)
+				}
 			}
 		}
 	}
+}
+
+func (w *WSClient) SendLogsResponse(requestID string, logs string, errMsg string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.conn == nil {
+		return nil
+	}
+
+	payload, _ := json.Marshal(map[string]string{
+		"request_id": requestID,
+		"logs":       logs,
+		"error":      errMsg,
+	})
+
+	w.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	return w.conn.WriteJSON(wsMessage{
+		Type:    "container_logs_response",
+		Payload: payload,
+	})
 }
 
 func (w *WSClient) IsConnected() bool {
@@ -141,7 +236,13 @@ func (w *WSClient) IsConnected() bool {
 func (w *WSClient) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if w.stopPing != nil {
+		close(w.stopPing)
+		w.stopPing = nil
+	}
 	if w.conn != nil {
+		w.conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		w.conn.Close()
 		w.conn = nil
 		w.connected = false

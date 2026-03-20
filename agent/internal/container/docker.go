@@ -2,6 +2,8 @@ package container
 
 import (
 	"context"
+	"fmt"
+	"io"
 
 	"github.com/docker/docker/api/types"
 	containerTypes "github.com/docker/docker/api/types/container"
@@ -22,7 +24,7 @@ func NewDockerClient() (*DockerClient, error) {
 }
 
 func (d *DockerClient) ListContainers(ctx context.Context) ([]collector.ContainerInfo, error) {
-	containers, err := d.cli.ContainerList(ctx, containerTypes.ListOptions{All: true})
+	containers, err := d.cli.ContainerList(ctx, containerTypes.ListOptions{All: false})
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +65,49 @@ func (d *DockerClient) ContainerAction(ctx context.Context, containerID string, 
 	}
 }
 
+func (d *DockerClient) GetContainerLogs(ctx context.Context, containerID string, lines int) (string, error) {
+	tail := "100"
+	if lines > 0 {
+		tail = fmt.Sprintf("%d", lines)
+	}
+	reader, err := d.cli.ContainerLogs(ctx, containerID, containerTypes.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       tail,
+		Timestamps: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	defer reader.Close()
+
+	out, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+
+	// Strip Docker log header bytes (8-byte prefix per line)
+	return stripDockerLogHeaders(out), nil
+}
+
+func stripDockerLogHeaders(raw []byte) string {
+	var lines []byte
+	for len(raw) > 0 {
+		if len(raw) < 8 {
+			lines = append(lines, raw...)
+			break
+		}
+		size := int(raw[4])<<24 | int(raw[5])<<16 | int(raw[6])<<8 | int(raw[7])
+		raw = raw[8:]
+		if size > len(raw) {
+			size = len(raw)
+		}
+		lines = append(lines, raw[:size]...)
+		raw = raw[size:]
+	}
+	return string(lines)
+}
+
 func (d *DockerClient) Close() error {
 	return d.cli.Close()
 }
@@ -82,10 +127,15 @@ func (s *StubDockerClient) ContainerAction(_ context.Context, _ string, _ string
 	return nil
 }
 
+func (s *StubDockerClient) GetContainerLogs(_ context.Context, _ string, _ int) (string, error) {
+	return "", nil
+}
+
 // ContainerManager interface
 type ContainerManager interface {
 	ListContainers(ctx context.Context) ([]collector.ContainerInfo, error)
 	ContainerAction(ctx context.Context, containerID string, action string) error
+	GetContainerLogs(ctx context.Context, containerID string, lines int) (string, error)
 }
 
 var _ ContainerManager = (*DockerClient)(nil)

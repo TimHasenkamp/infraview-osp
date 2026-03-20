@@ -4,11 +4,13 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { WSMessage } from "../_lib/types";
 import { WS_URL } from "../_lib/constants";
 
-type ConnectionStatus = "connecting" | "connected" | "disconnected";
+const MAX_RECONNECT_ATTEMPTS = 20;
+
+type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "failed";
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>("disconnected");
+  const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const attemptRef = useRef(0);
@@ -16,7 +18,7 @@ export function useWebSocket() {
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    setStatus("connecting");
+    setStatus(attemptRef.current === 0 ? "connecting" : "reconnecting");
     const ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
@@ -27,6 +29,8 @@ export function useWebSocket() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as WSMessage;
+        // Ignore server ping messages
+        if (data.type === "ping") return;
         setLastMessage(data);
       } catch {
         // ignore parse errors
@@ -34,9 +38,14 @@ export function useWebSocket() {
     };
 
     ws.onclose = () => {
-      setStatus("disconnected");
       wsRef.current = null;
 
+      if (attemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
+        setStatus("failed");
+        return;
+      }
+
+      setStatus("reconnecting");
       const delay = Math.min(1000 * Math.pow(2, attemptRef.current), 30000);
       attemptRef.current++;
       reconnectTimer.current = setTimeout(connect, delay);

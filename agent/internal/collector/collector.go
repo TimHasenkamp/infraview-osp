@@ -23,6 +23,28 @@ type DiskMetrics struct {
 	Path         string  `json:"path"`
 }
 
+type NetworkMetrics struct {
+	BytesSent   uint64 `json:"bytes_sent"`
+	BytesRecv   uint64 `json:"bytes_recv"`
+	PacketsSent uint64 `json:"packets_sent"`
+	PacketsRecv uint64 `json:"packets_recv"`
+}
+
+type LoadMetrics struct {
+	Load1  float64 `json:"load1"`
+	Load5  float64 `json:"load5"`
+	Load15 float64 `json:"load15"`
+}
+
+type ProcessInfo struct {
+	PID        int32   `json:"pid"`
+	Name       string  `json:"name"`
+	CPUPercent float64 `json:"cpu_percent"`
+	MemPercent float32 `json:"mem_percent"`
+	MemBytes   uint64  `json:"mem_bytes"`
+	User       string  `json:"user"`
+}
+
 type ContainerInfo struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -39,6 +61,10 @@ type SystemSnapshot struct {
 	CPU        CPUMetrics      `json:"cpu"`
 	Memory     MemoryMetrics   `json:"memory"`
 	Disk       DiskMetrics     `json:"disk"`
+	Network    NetworkMetrics  `json:"network"`
+	Load       LoadMetrics     `json:"load"`
+	Processes  []ProcessInfo  `json:"processes"`
+	Updates    *UpdatesInfo   `json:"updates"`
 	Containers []ContainerInfo `json:"containers"`
 }
 
@@ -72,12 +98,35 @@ func (c *Collector) Collect() (*SystemSnapshot, error) {
 		return nil, err
 	}
 
+	net, err := collectNetwork()
+	if err != nil {
+		return nil, err
+	}
+
+	ld, err := collectLoad()
+	if err != nil {
+		// Load averages may not be available on all platforms (e.g. Windows)
+		ld = &LoadMetrics{}
+	}
+
+	procs, err := collectProcesses(10)
+	if err != nil {
+		procs = []ProcessInfo{}
+	}
+
+	updates := collectUpdates()
+
 	return &SystemSnapshot{
-		Timestamp: time.Now().Unix(),
-		Hostname:  c.hostname,
-		AgentID:   c.agentID,
-		CPU:       *cpu,
-		Memory:    *mem,
-		Disk:      *disk,
+		Timestamp:  time.Now().Unix(),
+		Hostname:   c.hostname,
+		AgentID:    c.agentID,
+		CPU:        *cpu,
+		Memory:     *mem,
+		Disk:       *disk,
+		Network:    *net,
+		Load:       *ld,
+		Processes:  procs,
+		Updates:    updates,
+		Containers: []ContainerInfo{},
 	}, nil
 }

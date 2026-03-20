@@ -17,6 +17,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ContainerLogs } from "./container-logs";
+import { containerAction } from "../_lib/api-client";
+import { toast } from "sonner";
 import type { ContainerInfo } from "../_lib/types";
 
 interface ContainerListProps {
@@ -32,8 +35,13 @@ const stateStyles: Record<string, string> = {
 };
 
 export function ContainerList({ containers, serverId }: ContainerListProps) {
-  const handleAction = (containerId: string, action: string) => {
-    console.log(`${action} container ${containerId} on ${serverId}`);
+  const handleAction = async (containerId: string, action: string) => {
+    try {
+      await containerAction(serverId, containerId, action as "start" | "stop" | "restart");
+      toast.success(`Container ${action} command sent`);
+    } catch {
+      toast.error(`Failed to ${action} container`);
+    }
   };
 
   return (
@@ -49,6 +57,7 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
               <TableHead className="text-xs">Image</TableHead>
               <TableHead className="text-xs">State</TableHead>
               <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs w-10">Logs</TableHead>
               <TableHead className="text-xs w-12"></TableHead>
             </TableRow>
           </TableHeader>
@@ -71,6 +80,13 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {container.status}
+                </TableCell>
+                <TableCell>
+                  <ContainerLogs
+                    serverId={serverId}
+                    containerId={container.id}
+                    containerName={container.name}
+                  />
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useContext, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useWebSocket } from "../_hooks/use-websocket";
-import type { Server, WSMessage } from "../_lib/types";
+import type { Server, ProcessInfo, UpdatesInfo, WSMessage } from "../_lib/types";
 
 interface MetricUpdate {
   server_id: string;
@@ -10,6 +11,13 @@ interface MetricUpdate {
   cpu_percent: number;
   memory_percent: number;
   disk_percent: number;
+  net_bytes_sent: number;
+  net_bytes_recv: number;
+  load1: number;
+  load5: number;
+  load15: number;
+  processes: ProcessInfo[];
+  updates: UpdatesInfo | null;
   containers: Server["containers"];
 }
 
@@ -72,7 +80,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case "alert_event": {
-        setLastAlert(lastMessage.payload as AlertPayload);
+        const alert = lastMessage.payload as AlertPayload;
+        setLastAlert(alert);
+        if (alert.severity === "critical") {
+          toast.error(alert.message, { description: `Server: ${alert.server_id}` });
+        } else {
+          toast.warning(alert.message, { description: `Server: ${alert.server_id}` });
+        }
         break;
       }
     }
