@@ -14,6 +14,16 @@ async function proxyRequest(
     "Content-Type": "application/json",
   };
 
+  // Forward auth: cookie or Authorization header
+  const authHeader = request.headers.get("Authorization");
+  const cookie = request.headers.get("Cookie");
+  if (authHeader) {
+    headers["Authorization"] = authHeader;
+  }
+  if (cookie) {
+    headers["Cookie"] = cookie;
+  }
+
   const init: RequestInit = { method, headers };
 
   if (method !== "GET" && method !== "HEAD") {
@@ -23,9 +33,19 @@ async function proxyRequest(
   const res = await fetch(backendUrl, init);
   const body = await res.text();
 
+  const responseHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Forward Set-Cookie from backend to browser
+  const setCookie = res.headers.get("Set-Cookie");
+  if (setCookie) {
+    responseHeaders["Set-Cookie"] = setCookie;
+  }
+
   return new Response(body, {
     status: res.status,
-    headers: { "Content-Type": "application/json" },
+    headers: responseHeaders,
   });
 }
 

@@ -8,6 +8,7 @@ from sqlalchemy import select, delete
 from app.database import async_session
 from app.models import Server, Metric, Container
 from app.schemas.ws_message import SystemSnapshot
+from app.auth import verify_agent_key, verify_ws_token
 from app.ws.client_handler import broadcast_to_dashboards
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,13 @@ AGENT_TIMEOUT_SECONDS = 60
 
 @router.websocket("/ws/agent")
 async def agent_websocket(websocket: WebSocket):
+    # Validate agent API key
+    key = websocket.query_params.get("key")
+    if not verify_agent_key(key):
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning(f"Agent connection rejected: invalid API key")
+        return
+
     await websocket.accept()
     agent_id = None
     try:

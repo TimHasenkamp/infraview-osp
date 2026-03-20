@@ -52,5 +52,8 @@ class AlertEventResponse(BaseModel):
     message: str | None
     fired_at: float
     acknowledged: bool
+    acknowledged_at: float | None = None
+    resolved: bool = False
+    resolved_at: float | None = None
 
     model_config = {"from_attributes": True}

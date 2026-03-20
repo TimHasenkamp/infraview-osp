@@ -49,11 +49,9 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <Button size="sm" className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          New Rule
-        </Button>
+      <DialogTrigger className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <Plus className="h-4 w-4" />
+        New Rule
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,6 +77,33 @@ async def list_alert_events(
             message=e.message,
             fired_at=e.fired_at.timestamp(),
             acknowledged=e.acknowledged,
+            acknowledged_at=e.acknowledged_at.timestamp() if e.acknowledged_at else None,
+            resolved=e.resolved,
+            resolved_at=e.resolved_at.timestamp() if e.resolved_at else None,
         )
         for e in events
     ]
+
+
+@router.post("/alerts/events/{event_id}/acknowledge")
+async def acknowledge_event(event_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(AlertEvent).where(AlertEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Alert event not found")
+    event.acknowledged = True
+    event.acknowledged_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "acknowledged"}
+
+
+@router.post("/alerts/events/{event_id}/resolve")
+async def resolve_event(event_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(AlertEvent).where(AlertEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Alert event not found")
+    event.resolved = True
+    event.resolved_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "resolved"}

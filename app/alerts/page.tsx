@@ -65,7 +65,14 @@ export default function AlertsPage() {
             </Link>
             <h1 className="text-2xl font-bold tracking-tight">Alerts</h1>
           </div>
-          <AlertForm onSubmit={handleCreate} />
+          <div className="flex items-center gap-2">
+            <Link href="/alerts/events">
+              <Button variant="outline" size="sm">
+                Event History
+              </Button>
+            </Link>
+            <AlertForm onSubmit={handleCreate} />
+          </div>
         </div>
         {loading ? (
           <div className="space-y-3">

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from app.database import async_session
 from app.models import AlertRule, AlertEvent
 from app.schemas.ws_message import SystemSnapshot
@@ -54,7 +54,10 @@ async def check_alerts(snapshot: SystemSnapshot):
         triggered = (rule.operator == ">" and value > rule.threshold) or (
             rule.operator == "<" and value < rule.threshold
         )
+
+        # Auto-resolve: if metric recovered, resolve open events for this rule+server
         if not triggered:
+            await _auto_resolve(rule.id, snapshot.agent_id, value)
             continue
 
         async with _last_fired_lock:
@@ -111,3 +114,28 @@ async def check_alerts(snapshot: SystemSnapshot):
                 logger.error(f"Webhook notification failed for alert rule {rule.id}")
 
         logger.warning(f"Alert fired: {message}")
+
+
+async def _auto_resolve(rule_id: int, server_id: str, current_value: float):
+    """Resolve open (unresolved) alert events when metric recovers."""
+    async with async_session() as session:
+        async with session.begin():
+            result = await session.execute(
+                select(AlertEvent).where(
+                    and_(
+                        AlertEvent.rule_id == rule_id,
+                        AlertEvent.server_id == server_id,
+                        AlertEvent.resolved == False,
+                    )
+                )
+            )
+            open_events = result.scalars().all()
+            if not open_events:
+                return
+
+            now = datetime.utcnow()
+            for event in open_events:
+                event.resolved = True
+                event.resolved_at = now
+
+            logger.info(f"Auto-resolved {len(open_events)} alert(s) for rule {rule_id} on {server_id} (value: {current_value:.1f}%)")

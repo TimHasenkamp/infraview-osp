@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -80,7 +81,17 @@ func main() {
 		}
 	}
 
-	wsClient = transport.NewWSClient(cfg.BackendURL, onCommand, onLogs)
+	// Append API key to WebSocket URL
+	wsURL := cfg.BackendURL
+	if cfg.APIKey != "" {
+		sep := "?"
+		if strings.Contains(wsURL, "?") {
+			sep = "&"
+		}
+		wsURL += sep + "key=" + cfg.APIKey
+	}
+
+	wsClient = transport.NewWSClient(wsURL, onCommand, onLogs)
 
 	startTime := time.Now()
 	health.StartHealthServer(":8081", cfg.AgentID, startTime, wsClient.IsConnected)

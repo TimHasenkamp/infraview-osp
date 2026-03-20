@@ -19,7 +19,11 @@ export function useWebSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setStatus(attemptRef.current === 0 ? "connecting" : "reconnecting");
-    const ws = new WebSocket(WS_URL);
+
+    // Append JWT token for WebSocket auth
+    const token = typeof window !== "undefined" ? localStorage.getItem("infraview_token") : null;
+    const wsUrl = token ? `${WS_URL}${WS_URL.includes("?") ? "&" : "?"}token=${token}` : WS_URL;
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       setStatus("connected");

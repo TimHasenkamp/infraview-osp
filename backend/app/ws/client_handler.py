@@ -3,6 +3,7 @@ import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
+from app.auth import verify_ws_token
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,13 @@ dashboard_clients: set[WebSocket] = set()
 
 @router.websocket("/ws/dashboard")
 async def dashboard_websocket(websocket: WebSocket):
+    # Validate JWT token
+    user = await verify_ws_token(websocket)
+    if not user:
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning("Dashboard connection rejected: invalid token")
+        return
+
     await websocket.accept()
     dashboard_clients.add(websocket)
     logger.info(f"Dashboard client connected. Total: {len(dashboard_clients)}")

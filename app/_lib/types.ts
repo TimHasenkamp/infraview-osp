@@ -128,6 +128,9 @@ export interface AlertEvent {
   message: string;
   fired_at: number;
   acknowledged: boolean;
+  acknowledged_at: number | null;
+  resolved: boolean;
+  resolved_at: number | null;
 }
 
 export type WSMessageType =

@@ -29,24 +29,27 @@
 - [x] Structured logging with zerolog (console writer, caller info, structured fields)
 - [ ] Agent self-update mechanism
 
-## Phase 4 — Authentication & Security
+## Phase 4 — Authentication & Security ✅
 
-- [ ] API key authentication for agents
-- [ ] User authentication for dashboard (JWT or session-based)
+- [x] API key authentication for agents (ENV-based, validated on WS connect)
+- [x] User authentication for dashboard (JWT in httpOnly cookie + localStorage)
+- [x] Login page with username/password
+- [x] CORS restriction to known origins (configurable via ENV)
+- [x] Rate limiting on API endpoints (100 req/min, 10/min on login)
+- [x] WebSocket authentication token validation (agent key + dashboard JWT)
+- [x] Logout button in header
 - [ ] Role-based access control (admin / viewer)
 - [ ] HTTPS/TLS enforcement
-- [ ] CORS restriction to known origins
-- [ ] Rate limiting on API endpoints
-- [ ] WebSocket authentication token validation
 
-## Phase 5 — Alerting & Notifications
+## Phase 5 — Alerting & Notifications ✅
 
+- [x] Alert acknowledgement & resolution workflow (Ack/Resolve buttons)
+- [x] Auto-resolve alerts when metrics recover
+- [x] Alert events history page with status tracking
+- [x] Slack / Discord webhook integration (auto-detected, formatted embeds)
 - [ ] Composite alert rules (e.g. CPU > 80% AND Memory > 90%)
-- [ ] Alert acknowledgement & resolution workflow
-- [ ] Auto-resolve alerts when metrics recover
 - [ ] Maintenance windows / alert suppression
 - [ ] Escalation policies (notify → escalate after N minutes)
-- [ ] Slack / Discord / Teams integration (native, not just webhook)
 - [ ] Notification templates (customizable message format)
 
 ## Phase 6 — Data & Performance

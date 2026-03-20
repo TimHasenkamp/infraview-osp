@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, Bell, Wifi, WifiOff } from "lucide-react";
+import { Activity, Bell, Wifi, WifiOff, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useWSContext } from "../_providers/websocket-provider";
+import { useAuth } from "../_providers/auth-provider";
 
 interface HeaderProps {
   serverCount: number;
@@ -21,6 +22,7 @@ const statusConfig = {
 
 export function Header({ serverCount, onlineCount }: HeaderProps) {
   const { status: wsStatus } = useWSContext();
+  const { logout } = useAuth();
   const allOnline = onlineCount === serverCount;
   const wsConfig = statusConfig[wsStatus as keyof typeof statusConfig] ?? statusConfig.failed;
   const WsIcon = wsConfig.icon;
@@ -69,6 +71,9 @@ export function Header({ serverCount, onlineCount }: HeaderProps) {
             />
             {onlineCount}/{serverCount} online
           </Badge>
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={logout}>
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </header>

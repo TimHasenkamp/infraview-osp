@@ -10,6 +10,7 @@ type Config struct {
 	AgentID    string
 	Interval   int
 	DiskPath   string
+	APIKey     string
 }
 
 func Load() *Config {
@@ -18,6 +19,7 @@ func Load() *Config {
 		AgentID:    getEnv("INFRAVIEW_AGENT_ID", ""),
 		Interval:   getEnvInt("INFRAVIEW_INTERVAL", 5),
 		DiskPath:   getEnv("INFRAVIEW_DISK_PATH", "/"),
+		APIKey:     getEnv("INFRAVIEW_API_KEY", ""),
 	}
 
 	if c.AgentID == "" {

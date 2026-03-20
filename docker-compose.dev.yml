@@ -25,6 +25,11 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///data/infraview.db
+      - JWT_SECRET_KEY=dev-secret-key-do-not-use-in-prod
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=admin
+      - AGENT_API_KEY=dev-agent-key
+      - CORS_ORIGINS=["http://localhost:3000"]
     volumes:
       - ./backend/app:/app/app
       - backend-data:/app/data
@@ -40,6 +45,7 @@ services:
       - INFRAVIEW_BACKEND_URL=ws://localhost:8000/ws/agent
       - INFRAVIEW_AGENT_ID=docker-dev
       - INFRAVIEW_INTERVAL=5
+      - INFRAVIEW_API_KEY=dev-agent-key
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 

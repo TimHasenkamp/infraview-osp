@@ -24,6 +24,10 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - ALERT_FROM_EMAIL=${ALERT_FROM_EMAIL:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - AGENT_API_KEY=${AGENT_API_KEY:?AGENT_API_KEY is required}
     volumes:
       - backend-data:/app/data
 
@@ -35,6 +39,7 @@ services:
       - INFRAVIEW_BACKEND_URL=ws://backend:8000/ws/agent
       - INFRAVIEW_AGENT_ID=${HOSTNAME:-local-dev}
       - INFRAVIEW_INTERVAL=5
+      - INFRAVIEW_API_KEY=${AGENT_API_KEY:?AGENT_API_KEY is required}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:

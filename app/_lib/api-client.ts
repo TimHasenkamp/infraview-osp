@@ -64,6 +64,14 @@ export async function getAlertEvents(): Promise<AlertEvent[]> {
   return apiFetch<AlertEvent[]>("alerts/events");
 }
 
+export async function acknowledgeEvent(eventId: number): Promise<void> {
+  await apiFetch(`alerts/events/${eventId}/acknowledge`, { method: "POST" });
+}
+
+export async function resolveEvent(eventId: number): Promise<void> {
+  await apiFetch(`alerts/events/${eventId}/resolve`, { method: "POST" });
+}
+
 export async function getContainerLogs(
   serverId: string,
   containerId: string,

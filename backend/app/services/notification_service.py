@@ -53,10 +53,67 @@ async def send_email_alert(to: str, message: str, severity: str) -> bool:
 
 
 async def send_webhook_alert(url: str, payload: dict) -> bool:
+    # Auto-detect Slack/Discord and format accordingly
+    body = _format_webhook_payload(url, payload)
+
     async def _send():
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(url, json=payload)
+            resp = await client.post(url, json=body)
             resp.raise_for_status()
             logger.info(f"Webhook alert sent to {url}")
 
     return await _retry(_send, backoff_base=1, label=f"Webhook to {url}")
+
+
+def _format_webhook_payload(url: str, payload: dict) -> dict:
+    severity = payload.get("severity", "warning")
+    message = payload.get("message", "")
+    server_id = payload.get("server_id", "")
+    metric = payload.get("metric", "")
+    value = payload.get("value", 0)
+    threshold = payload.get("threshold", 0)
+
+    color = 0xFF4444 if severity == "critical" else 0xFFAA00
+
+    # Slack webhook
+    if "hooks.slack.com" in url:
+        emoji = ":rotating_light:" if severity == "critical" else ":warning:"
+        return {
+            "text": f"{emoji} *InfraView Alert* [{severity.upper()}]",
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"{emoji} *{message}*"},
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                        {"type": "mrkdwn", "text": f"*Server:*\n{server_id}"},
+                        {"type": "mrkdwn", "text": f"*Metric:*\n{metric}"},
+                        {"type": "mrkdwn", "text": f"*Value:*\n{value:.1f}%"},
+                        {"type": "mrkdwn", "text": f"*Threshold:*\n{threshold}%"},
+                    ],
+                },
+            ],
+        }
+
+    # Discord webhook
+    if "discord.com/api/webhooks" in url:
+        return {
+            "embeds": [
+                {
+                    "title": f"InfraView Alert [{severity.upper()}]",
+                    "description": message,
+                    "color": color,
+                    "fields": [
+                        {"name": "Server", "value": server_id, "inline": True},
+                        {"name": "Metric", "value": metric, "inline": True},
+                        {"name": "Value", "value": f"{value:.1f}%", "inline": True},
+                        {"name": "Threshold", "value": f"{threshold}%", "inline": True},
+                    ],
+                }
+            ]
+        }
+
+    # Generic webhook (unchanged)
+    return payload

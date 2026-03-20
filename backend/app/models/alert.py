@@ -33,3 +33,6 @@ class AlertEvent(Base):
     message: Mapped[str | None] = mapped_column(String, nullable=True)
     fired_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     acknowledged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
