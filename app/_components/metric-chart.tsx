@@ -127,20 +127,24 @@ export function MetricChart({ serverId }: MetricChartProps) {
   const hasNetOrLoad = visible.has("net_bytes_recv") || visible.has("net_bytes_sent") || visible.has("load1") || visible.has("load5");
   const hasPercent = visible.has("cpu_percent") || visible.has("memory_percent") || visible.has("disk_percent");
 
-  const formatTime = (ts: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formatTime = (label: any) => {
+    const ts = Number(label);
     const d = new Date(ts * 1000);
-    if (range === "7d") {
+    if (range === "7d" || range === "30d") {
       return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) +
         " " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
     }
     return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   };
 
-  const formatTooltipValue = (value: number, name: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formatTooltipValue = (value: any, name: any) => {
+    const v = Number(value);
     const series = METRIC_SERIES.find((s) => s.name === name);
-    if (series?.unit === "bytes") return [`${formatBytes(value)}/s`, name];
-    if (series?.unit === "%") return [`${value.toFixed(1)}%`, name];
-    return [value.toFixed(2), name];
+    if (series?.unit === "bytes") return [`${formatBytes(v)}/s`, name];
+    if (series?.unit === "%") return [`${v.toFixed(1)}%`, name];
+    return [v.toFixed(2), name];
   };
 
   const activeSeries = METRIC_SERIES.filter((s) => visible.has(s.key));
