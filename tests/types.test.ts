@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type {
-  PaginatedResponse,
   PaginatedMetrics,
-  PaginatedAlertEvents,
-  MetricSnapshot,
-  AlertEvent,
 } from "../app/_lib/types";
 
 describe("PaginatedResponse type", () => {

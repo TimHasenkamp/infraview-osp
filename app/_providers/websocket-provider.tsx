@@ -3,7 +3,7 @@
 import { createContext, useContext, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useWebSocket } from "../_hooks/use-websocket";
-import type { Server, ProcessInfo, UpdatesInfo, WSMessage } from "../_lib/types";
+import type { Server, ProcessInfo, UpdatesInfo } from "../_lib/types";
 
 interface MetricUpdate {
   server_id: string;

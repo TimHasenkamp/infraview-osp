@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getContainerLogs } from "../_lib/api-client";
 
@@ -60,8 +59,8 @@ export function ContainerLogs({ serverId, containerId, containerName }: Containe
         <div className="flex-1 min-h-0">
           {loading ? (
             <div className="space-y-1.5">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <Skeleton key={i} className="h-4 w-full" style={{ width: `${60 + Math.random() * 40}%` }} />
+              {[85, 72, 93, 68, 77, 90, 64, 81, 96, 70, 88, 75].map((w, i) => (
+                <Skeleton key={i} className="h-4" style={{ width: `${w}%` }} />
               ))}
             </div>
           ) : error ? (

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./constants";
-import type { Server, MetricSnapshot, AlertRule, AlertEvent, PaginatedMetrics, PaginatedAlertEvents } from "./types";
+import type { Server, AlertRule, PaginatedMetrics, PaginatedAlertEvents } from "./types";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}/${path}`, {
