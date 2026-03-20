@@ -32,10 +32,10 @@ export function useWebSocket() {
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as WSMessage;
+        const data = JSON.parse(event.data);
         // Ignore server ping messages
         if (data.type === "ping") return;
-        setLastMessage(data);
+        setLastMessage(data as WSMessage);
       } catch {
         // ignore parse errors
       }
