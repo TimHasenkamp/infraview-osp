@@ -19,4 +19,5 @@ export const TIME_RANGES = [
   { label: "6h", value: "6h", seconds: 21600 },
   { label: "24h", value: "24h", seconds: 86400 },
   { label: "7d", value: "7d", seconds: 604800 },
+  { label: "30d", value: "30d", seconds: 2592000 },
 ] as const;

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./constants";
-import type { Server, MetricSnapshot, AlertRule, AlertEvent } from "./types";
+import type { Server, MetricSnapshot, AlertRule, AlertEvent, PaginatedMetrics, PaginatedAlertEvents } from "./types";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}/${path}`, {
@@ -23,8 +23,19 @@ export async function getServer(id: string): Promise<Server> {
   return apiFetch<Server>(`servers/${id}`);
 }
 
-export async function getMetrics(serverId: string, range = "1h"): Promise<MetricSnapshot[]> {
-  return apiFetch<MetricSnapshot[]>(`servers/${serverId}/metrics?range=${range}`);
+export async function getMetrics(
+  serverId: string,
+  range = "1h",
+  limit = 500,
+  offset = 0
+): Promise<PaginatedMetrics> {
+  return apiFetch<PaginatedMetrics>(
+    `servers/${serverId}/metrics?range=${range}&limit=${limit}&offset=${offset}`
+  );
+}
+
+export function getMetricsExportUrl(serverId: string, range = "1h", format: "csv" | "json" = "csv"): string {
+  return `${API_BASE_URL}/servers/${serverId}/metrics/export?range=${range}&format=${format}`;
 }
 
 export async function containerAction(
@@ -60,8 +71,19 @@ export async function deleteAlert(id: number): Promise<void> {
   await apiFetch(`alerts/${id}`, { method: "DELETE" });
 }
 
-export async function getAlertEvents(): Promise<AlertEvent[]> {
-  return apiFetch<AlertEvent[]>("alerts/events");
+export async function getAlertEvents(
+  limit = 50,
+  offset = 0,
+  serverId?: string,
+  severity?: string
+): Promise<PaginatedAlertEvents> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (serverId) params.set("server_id", serverId);
+  if (severity) params.set("severity", severity);
+  return apiFetch<PaginatedAlertEvents>(`alerts/events?${params}`);
 }
 
 export async function acknowledgeEvent(eventId: number): Promise<void> {

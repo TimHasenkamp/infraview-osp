@@ -15,6 +15,7 @@ from app.auth import require_auth
 from app.api import health, servers, metrics, containers, alerts
 from app.api import auth as auth_routes
 from app.ws import agent_handler, client_handler
+from app.services.downsampling import downsample_metrics
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,13 +27,16 @@ async def prune_old_metrics():
     while True:
         await asyncio.sleep(3600)
         try:
-            cutoff = datetime.utcnow() - timedelta(days=30)
+            cutoff = datetime.utcnow() - timedelta(days=settings.metric_retention_days)
             async with async_session() as session:
                 async with session.begin():
-                    await session.execute(
+                    result = await session.execute(
                         delete(Metric).where(Metric.timestamp < cutoff)
                     )
-            logger.info("Pruned metrics older than 30 days")
+            logger.info(
+                f"Pruned {result.rowcount} metrics older than "
+                f"{settings.metric_retention_days} days"
+            )
         except Exception as e:
             logger.error(f"Metric pruning failed: {e}")
 
@@ -50,6 +54,7 @@ async def lifespan(app: FastAPI):
 
     tasks = [
         asyncio.create_task(prune_old_metrics()),
+        asyncio.create_task(downsample_metrics()),
         asyncio.create_task(agent_handler.check_agent_timeouts()),
         asyncio.create_task(client_handler.ping_dashboard_clients()),
     ]

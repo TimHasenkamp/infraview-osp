@@ -24,12 +24,24 @@ export default function AlertEventsPage() {
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getAlertEvents()
-      .then(setEvents)
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageSize = 50;
+
+  const loadEvents = (offset: number) => {
+    setLoading(true);
+    getAlertEvents(pageSize, offset)
+      .then((result) => {
+        setEvents(result.items);
+        setTotal(result.total);
+      })
       .catch(() => toast.error("Failed to load alert events"))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    loadEvents(page * pageSize);
+  }, [page]);
 
   const handleAcknowledge = async (id: number) => {
     try {
@@ -163,6 +175,33 @@ export default function AlertEventsPage() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+            {total > pageSize && (
+              <div className="flex items-center justify-between pt-4">
+                <span className="text-xs text-muted-foreground">
+                  Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={(page + 1) * pageSize >= total}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

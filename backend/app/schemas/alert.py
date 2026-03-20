@@ -57,3 +57,10 @@ class AlertEventResponse(BaseModel):
     resolved_at: float | None = None
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedAlertEventResponse(BaseModel):
+    items: list[AlertEventResponse]
+    total: int
+    limit: int
+    offset: int

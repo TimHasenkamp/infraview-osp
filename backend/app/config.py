@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     admin_password: str = "admin"
     agent_api_key: str = "change-me-in-production"
 
+    # Data retention
+    metric_retention_days: int = 30
+    downsample_enabled: bool = True
+    downsample_1min_after_hours: int = 6
+    downsample_5min_after_hours: int = 48
+    downsample_1h_after_hours: int = 168  # 7 days
+
     model_config = {"env_prefix": "", "case_sensitive": False}
 
 

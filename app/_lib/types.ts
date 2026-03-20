@@ -133,6 +133,16 @@ export interface AlertEvent {
   resolved_at: number | null;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export type PaginatedMetrics = PaginatedResponse<MetricSnapshot>;
+export type PaginatedAlertEvents = PaginatedResponse<AlertEvent>;
+
 export type WSMessageType =
   | "initial_state"
   | "metric_update"

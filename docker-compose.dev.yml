@@ -41,13 +41,16 @@ services:
       context: ./agent
       dockerfile: Dockerfile
     network_mode: host
+    pid: host
     environment:
       - INFRAVIEW_BACKEND_URL=ws://localhost:8000/ws/agent
       - INFRAVIEW_AGENT_ID=docker-dev
       - INFRAVIEW_INTERVAL=5
       - INFRAVIEW_API_KEY=dev-agent-key
+      - HOST_PROC=/host/proc
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
 
 volumes:
   backend-data:

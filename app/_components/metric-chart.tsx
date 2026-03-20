@@ -14,8 +14,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMetrics } from "../_lib/api-client";
+import { getMetrics, getMetricsExportUrl } from "../_lib/api-client";
 import { useWSContext } from "../_providers/websocket-provider";
+import { Download } from "lucide-react";
 import { formatBytes } from "../_lib/utils";
 import { TIME_RANGES } from "../_lib/constants";
 import type { MetricSnapshot } from "../_lib/types";
@@ -25,13 +26,13 @@ interface MetricChartProps {
 }
 
 const METRIC_SERIES = [
-  { key: "cpu_percent", name: "CPU", color: "#10b981", unit: "%", default: true },
+  { key: "cpu_percent", name: "CPU", color: "#00e5ff", unit: "%", default: true },
   { key: "memory_percent", name: "RAM", color: "#f59e0b", unit: "%", default: true },
-  { key: "disk_percent", name: "Disk", color: "#6366f1", unit: "%", default: true },
+  { key: "disk_percent", name: "Disk", color: "#7c8fff", unit: "%", default: true },
   { key: "load1", name: "Load 1m", color: "#ec4899", unit: "", default: false },
   { key: "load5", name: "Load 5m", color: "#f43f5e", unit: "", default: false },
-  { key: "net_bytes_recv", name: "Net In", color: "#06b6d4", unit: "bytes", default: false },
-  { key: "net_bytes_sent", name: "Net Out", color: "#8b5cf6", unit: "bytes", default: false },
+  { key: "net_bytes_recv", name: "Net In", color: "#38bdf8", unit: "bytes", default: false },
+  { key: "net_bytes_sent", name: "Net Out", color: "#818cf8", unit: "bytes", default: false },
 ] as const;
 
 type SeriesKey = typeof METRIC_SERIES[number]["key"];
@@ -62,10 +63,10 @@ export function MetricChart({ serverId }: MetricChartProps) {
     setLoading(true);
     setError(null);
 
-    getMetrics(serverId, range)
-      .then((metrics) => {
+    getMetrics(serverId, range, 5000)
+      .then((result) => {
         if (!cancelled) {
-          setData(metrics);
+          setData(result.items);
           setLoading(false);
         }
       })
@@ -150,15 +151,26 @@ export function MetricChart({ serverId }: MetricChartProps) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base">System Metrics</CardTitle>
-          <Tabs value={range} onValueChange={setRange}>
-            <TabsList className="h-8">
-              {TIME_RANGES.map((r) => (
-                <TabsTrigger key={r.value} value={r.value} className="text-xs px-2.5 h-6">
-                  {r.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-2">
+            <a
+              href={getMetricsExportUrl(serverId, range, "csv")}
+              download
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Export CSV"
+            >
+              <Download className="h-3 w-3" />
+              CSV
+            </a>
+            <Tabs value={range} onValueChange={setRange}>
+              <TabsList className="h-8">
+                {TIME_RANGES.map((r) => (
+                  <TabsTrigger key={r.value} value={r.value} className="text-xs px-2.5 h-6">
+                    {r.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5 pt-2">
           {METRIC_SERIES.map((s) => (
@@ -204,7 +216,7 @@ export function MetricChart({ serverId }: MetricChartProps) {
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -242,8 +254,8 @@ export function MetricChart({ serverId }: MetricChartProps) {
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#18181b",
-                    border: "1px solid #3f3f46",
+                    backgroundColor: "#0f1a2e",
+                    border: "1px solid #1e3a5f",
                     borderRadius: "8px",
                     fontSize: "12px",
                     fontFamily: "monospace",

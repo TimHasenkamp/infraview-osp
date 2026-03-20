@@ -13,3 +13,10 @@ class MetricResponse(BaseModel):
     load15: float = 0.0
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedMetricResponse(BaseModel):
+    items: list[MetricResponse]
+    total: int
+    limit: int
+    offset: int
