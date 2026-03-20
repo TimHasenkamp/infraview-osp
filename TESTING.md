@@ -2,7 +2,7 @@
 
 ## Backend (Python / pytest)
 
-**35 Tests** — API routes, services, downsampling
+**39 Tests** — API routes, auth, services, downsampling
 
 ```bash
 cd backend
@@ -19,7 +19,7 @@ pytest tests/ --cov=app --cov-report=term-missing
 
 | Datei | Was wird getestet |
 |---|---|
-| `tests/test_auth.py` | Login, Logout, JWT, geschützte Routen |
+| `tests/test_auth.py` | Login, Logout, JWT, Change-Password, geschützte Routen |
 | `tests/test_servers.py` | Server list/detail, 404 |
 | `tests/test_metrics.py` | Pagination, CSV/JSON Export, Range-Validierung |
 | `tests/test_alerts.py` | Alert CRUD, Events Pagination, Acknowledge/Resolve |

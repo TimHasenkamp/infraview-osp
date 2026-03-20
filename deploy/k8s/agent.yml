@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: infraview-agent
+  namespace: infraview
+  labels:
+    app: infraview-agent
+spec:
+  selector:
+    matchLabels:
+      app: infraview-agent
+  template:
+    metadata:
+      labels:
+        app: infraview-agent
+    spec:
+      hostPID: true
+      containers:
+        - name: agent
+          image: ghcr.io/OWNER/infraview-osp/agent:latest
+          env:
+            - name: INFRAVIEW_BACKEND_URL
+              value: "ws://infraview-backend.infraview.svc.cluster.local:8000/ws/agent"
+            - name: INFRAVIEW_AGENT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: INFRAVIEW_INTERVAL
+              value: "5"
+            - name: INFRAVIEW_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: infraview-secret
+                  key: AGENT_API_KEY
+            - name: HOST_PROC
+              value: /host/proc
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists

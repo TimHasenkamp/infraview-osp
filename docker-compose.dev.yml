@@ -26,8 +26,6 @@ services:
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///data/infraview.db
       - JWT_SECRET_KEY=dev-secret-key-do-not-use-in-prod
-      - ADMIN_USER=admin
-      - ADMIN_PASSWORD=admin
       - AGENT_API_KEY=dev-agent-key
       - CORS_ORIGINS=["http://localhost:3000"]
     volumes:

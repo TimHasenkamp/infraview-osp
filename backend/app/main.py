@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import secrets
+import string
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, Request, Response
@@ -7,11 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import delete, text
+from sqlalchemy import delete, select, text
 from app.config import settings
 from app.database import init_db, async_session
-from app.models import Metric
-from app.auth import require_auth
+from app.models import Metric, AdminUser
+from app.auth import require_auth, hash_password
 from app.api import health, servers, metrics, containers, alerts
 from app.api import auth as auth_routes
 from app.ws import agent_handler, client_handler
@@ -41,6 +43,45 @@ async def prune_old_metrics():
             logger.error(f"Metric pruning failed: {e}")
 
 
+def _generate_password(length: int = 16) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+async def _ensure_admin_user():
+    """Create admin user with random password on first startup."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(AdminUser).where(AdminUser.username == settings.admin_user)
+        )
+        admin = result.scalar_one_or_none()
+
+        if admin is None:
+            password = _generate_password()
+            admin = AdminUser(
+                username=settings.admin_user,
+                password_hash=hash_password(password),
+                must_change_password=False,
+            )
+            session.add(admin)
+            await session.commit()
+
+            # Write credentials to file and log
+            creds_path = "data/initial_credentials.txt"
+            with open(creds_path, "w") as f:
+                f.write(f"Username: {settings.admin_user}\n")
+                f.write(f"Password: {password}\n")
+
+            logger.info("=" * 60)
+            logger.info("  INITIAL ADMIN CREDENTIALS")
+            logger.info(f"  Username: {settings.admin_user}")
+            logger.info(f"  Password: {password}")
+            logger.info(f"  Saved to: {creds_path}")
+            logger.info("=" * 60)
+        else:
+            logger.info(f"Admin user '{settings.admin_user}' already exists")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -51,6 +92,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Database connectivity check failed: {e}")
         raise
+
+    # Ensure admin user exists
+    await _ensure_admin_user()
 
     tasks = [
         asyncio.create_task(prune_old_metrics()),

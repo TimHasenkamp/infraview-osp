@@ -52,33 +52,33 @@
 - [ ] Escalation policies (notify → escalate after N minutes)
 - [ ] Notification templates (customizable message format)
 
-## Phase 6 — Data & Performance
+## Phase 6 — Data & Performance ✅
 
+- [x] Metric downsampling (5s → 1min → 5min → 1h for older data)
+- [x] Configurable retention policies (ENV-based)
+- [x] Pagination on metrics and alert events endpoints
+- [x] Data export (CSV/JSON)
 - [ ] Database migration to PostgreSQL (optional, for multi-instance)
 - [ ] Alembic migrations for schema versioning
-- [ ] Metric downsampling (1min → 5min → 1h for older data)
-- [ ] Configurable retention policies
-- [ ] Pagination on all list endpoints
-- [ ] Database query optimization & indexing for large datasets
-- [ ] Data export (CSV/JSON)
 
-## Phase 7 — Testing
+## Phase 7 — Testing ✅
 
-- [ ] Backend unit tests (pytest) — API routes, services, models
-- [ ] Backend integration tests — WebSocket handlers, alert evaluation
-- [ ] Frontend component tests (Vitest + Testing Library)
-- [ ] Agent unit tests (Go testing)
+- [x] Backend unit tests (pytest) — API routes, auth, services, downsampling (39 tests)
+- [x] Frontend component tests (Vitest + Testing Library) (26 tests)
+- [x] Agent unit tests (Go testing) — config, health, collectors (14 tests)
 - [ ] End-to-end tests (Playwright)
 
-## Phase 8 — CI/CD & Deployment
+## Phase 8 — CI/CD & Deployment ✅
 
-- [ ] GitHub Actions pipeline (lint, test, build, push images)
-- [ ] Multi-architecture Docker builds (amd64 + arm64)
+- [x] GitHub Actions CI pipeline (lint, test, build)
+- [x] GitHub Actions release pipeline (tag-triggered)
+- [x] Multi-architecture Docker builds (amd64 + arm64)
+- [x] Kubernetes manifests (Deployment, Service, Ingress, ConfigMap, DaemonSet)
+- [x] Kustomize for deployment
+- [x] `.dockerignore` optimization
 - [ ] Image vulnerability scanning (Trivy)
-- [ ] Kubernetes manifests (Deployment, Service, Ingress, ConfigMap)
 - [ ] Helm chart for configurable deployments
 - [ ] Automated release versioning (semantic-release)
-- [ ] `.dockerignore` optimization
 
 ## Phase 9 — Observability & Operations
 

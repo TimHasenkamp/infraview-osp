@@ -1,4 +1,14 @@
 node_modules
 .next
+.git
+.github
 backend
 agent
+tests
+vitest.config.ts
+TESTING.md
+ROADMAP.md
+CLAUDE.md
+AGENTS.md
+*.md
+!README.md

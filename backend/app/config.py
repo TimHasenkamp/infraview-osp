@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_expire_minutes: int = 480
     admin_user: str = "admin"
-    admin_password: str = "admin"
     agent_api_key: str = "change-me-in-production"
 
     # Data retention

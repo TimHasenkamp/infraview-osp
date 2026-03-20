@@ -7,6 +7,8 @@ interface AuthContextType {
   user: string | null;
   token: string | null;
   loading: boolean;
+  mustChangePassword: boolean;
+  setMustChangePassword: (v: boolean) => void;
   logout: () => void;
 }
 
@@ -14,6 +16,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   token: null,
   loading: true,
+  mustChangePassword: false,
+  setMustChangePassword: () => {},
   logout: () => {},
 });
 
@@ -25,11 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // Skip auth check on login page
     if (pathname === "/login") {
       setLoading(false);
       return;
@@ -42,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Verify token with backend
     fetch("/api/proxy/auth/me", {
       headers: { Authorization: `Bearer ${savedToken}` },
     })
@@ -53,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((data) => {
         setUser(data.user);
         setToken(savedToken);
+        setMustChangePassword(data.must_change_password ?? false);
       })
       .catch(() => {
         localStorage.removeItem("infraview_token");
@@ -69,7 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  // Don't gate the login page
   if (pathname === "/login") {
     return <>{children}</>;
   }
@@ -87,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, mustChangePassword, setMustChangePassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

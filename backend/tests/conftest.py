@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 
 from app.database import Base, get_db
 from app.main import app
-from app.auth import create_access_token
-from app.models import Server, Metric, AlertRule, AlertEvent
+from app.auth import create_access_token, hash_password
+from app.models import Server, Metric, AlertRule, AlertEvent, AdminUser
 
 
 @pytest.fixture()
@@ -19,6 +19,14 @@ async def db_session():
         await conn.run_sync(Base.metadata.create_all)
 
     async with session_factory() as session:
+        # Ensure admin user exists for auth tests
+        admin = AdminUser(
+            username="admin",
+            password_hash=hash_password("admin"),
+            must_change_password=False,
+        )
+        session.add(admin)
+        await session.commit()
         yield session
 
     async with engine.begin() as conn:

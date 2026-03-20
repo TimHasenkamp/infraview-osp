@@ -23,27 +23,48 @@ A Go agent runs on each server and streams system metrics via WebSocket to a Fas
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | Backend  | Python, FastAPI, SQLAlchemy (async), SQLite, WebSockets |
 | Agent    | Go, gopsutil, Docker SDK, gorilla/websocket |
-| Infra    | Docker, Docker Compose                  |
+| Infra    | Docker, Docker Compose, Kubernetes, GitHub Actions |
 
 ## Features
 
-- Real-time CPU, RAM, and disk monitoring with live charts
-- Docker container overview with start/stop/restart actions
-- Alert rules with email and webhook notifications
-- Multi-server dashboard with status indicators
-- Metric history with selectable time ranges (1h / 6h / 24h / 7d)
+- Real-time CPU, RAM, disk, network, and load monitoring with live charts
+- Process monitoring (top 10 by CPU/memory)
+- Docker container overview with start/stop/restart and log viewer
+- Alert rules with email, Slack, and Discord webhook notifications
+- Alert acknowledgement, resolution, and auto-resolve workflow
+- Metric history with selectable time ranges (1h / 6h / 24h / 7d / 30d)
+- Automatic metric downsampling (5s -> 1min -> 5min -> 1h)
+- CSV/JSON data export
+- Paginated API with filtering
+- JWT authentication with rate limiting and auto-generated initial credentials
 - Single Docker Compose deployment
+- Kubernetes-ready with DaemonSet agent
 
 ## Quick Start (Production)
 
 ```bash
-cp .env.example .env
+# Only JWT_SECRET_KEY and AGENT_API_KEY are required
+export JWT_SECRET_KEY=$(openssl rand -hex 32)
+export AGENT_API_KEY=$(openssl rand -hex 16)
+
 docker compose up --build
+```
+
+On first startup, the backend generates a random admin password, prints it to the logs, and saves it to `data/initial_credentials.txt`:
+
+```
+============================================================
+  INITIAL ADMIN CREDENTIALS
+  Username: admin
+  Password: aB3kX9mPq2wZ7nR4
+  Saved to: data/initial_credentials.txt
+============================================================
 ```
 
 - Dashboard: http://localhost:3000
 - Backend API: http://localhost:8000
-- API Health: http://localhost:8000/api/health
+
+You can change the password later via the API (`POST /api/auth/change-password`).
 
 ---
 
@@ -100,7 +121,6 @@ export INFRAVIEW_INTERVAL=5
 go run ./cmd/agent/
 
 # Terminal 3: Frontend
-cp .env.example .env.local
 pnpm install
 pnpm dev
 ```
@@ -160,7 +180,6 @@ export INFRAVIEW_INTERVAL=5
 go run ./cmd/agent/
 
 # Terminal 3: Frontend
-cp .env.example .env.local
 pnpm install
 pnpm dev
 ```
@@ -231,7 +250,6 @@ export INFRAVIEW_INTERVAL=5
 go run ./cmd/agent/
 
 # Terminal 3: Frontend
-cp .env.example .env.local
 pnpm install
 pnpm dev
 ```
@@ -254,6 +272,9 @@ pnpm dev
 | `pnpm dev` | Frontend only (needs backend running) |
 | `pnpm build` | Production build |
 | `pnpm lint` | Run ESLint |
+| `pnpm test` | Run frontend tests (Vitest) |
+| `cd backend && pytest tests/ -v` | Run backend tests (pytest) |
+| `cd agent && go test ./... -v` | Run agent tests |
 
 ## Environment Variables
 
@@ -271,6 +292,44 @@ pnpm dev
 | `SMTP_USER` | — | SMTP username |
 | `SMTP_PASS` | — | SMTP password |
 | `ALERT_FROM_EMAIL` | — | Sender address for alert emails |
+| `JWT_SECRET_KEY` | `change-me-in-production` | Secret for JWT token signing |
+| `ADMIN_USER` | `admin` | Dashboard login username |
+| `AGENT_API_KEY` | `change-me-in-production` | API key for agent authentication |
+| `METRIC_RETENTION_DAYS` | `30` | Days before metrics are pruned |
+| `DOWNSAMPLE_ENABLED` | `true` | Enable automatic metric downsampling |
+| `DOWNSAMPLE_1MIN_AFTER_HOURS` | `6` | Aggregate to 1min averages after N hours |
+| `DOWNSAMPLE_5MIN_AFTER_HOURS` | `48` | Aggregate to 5min averages after N hours |
+| `DOWNSAMPLE_1H_AFTER_HOURS` | `168` | Aggregate to 1h averages after N hours |
+
+## CI/CD
+
+Push/PR to `main` triggers the CI pipeline (`.github/workflows/ci.yml`):
+1. **Backend Tests** — pytest with coverage
+2. **Frontend Lint & Tests** — ESLint + Vitest
+3. **Agent Tests** — Go test with coverage
+4. **Docker Build** — all 3 images (build-only, no push)
+
+Tagging a release (`git tag v1.0.0 && git push --tags`) triggers the release pipeline (`.github/workflows/release.yml`):
+- Multi-arch builds (amd64 + arm64)
+- Push to GitHub Container Registry (`ghcr.io`)
+- Semantic version tags (`v1.0.0`, `v1.0`, SHA)
+
+## Kubernetes Deployment
+
+```bash
+# Edit deploy/k8s/secret.yml with your credentials
+# Replace OWNER in image references with your GitHub username
+
+kubectl apply -k deploy/k8s/
+```
+
+Components:
+- **Backend**: Deployment + Service + PVC (1Gi for SQLite)
+- **Frontend**: Deployment + Service
+- **Agent**: DaemonSet (runs on every node, hostPID for process monitoring)
+- **Ingress**: nginx with WebSocket support
+
+See [deploy/k8s/](deploy/k8s/) for all manifests.
 
 ## Deploying the Agent
 
@@ -280,11 +339,17 @@ The agent can be deployed independently on any server you want to monitor.
 
 ```bash
 docker run -d \
+  --pid=host \
   -e INFRAVIEW_BACKEND_URL=ws://your-backend:8000/ws/agent \
   -e INFRAVIEW_AGENT_ID=server-01 \
+  -e INFRAVIEW_API_KEY=your-agent-key \
+  -e HOST_PROC=/host/proc \
+  -v /proc:/host/proc:ro \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   infraview-agent
 ```
+
+> `--pid=host` and `/proc` mount are required for process monitoring.
 
 **As standalone binary (~5MB):**
 
@@ -321,9 +386,22 @@ infraview-osp/
 │       ├── container/      # Docker integration
 │       └── transport/      # WebSocket client
 ├── components/ui/          # shadcn/ui components
+├── tests/                  # Frontend tests (Vitest)
+├── deploy/k8s/             # Kubernetes manifests
+├── .github/workflows/      # CI/CD pipelines
 ├── docker-compose.yml      # Production setup
 └── docker-compose.dev.yml  # Development setup (hot-reload)
 ```
+
+## Testing
+
+See [TESTING.md](TESTING.md) for details on running tests.
+
+| Suite | Framework | Count | Command |
+|-------|-----------|-------|---------|
+| Backend | pytest | 39 | `cd backend && pytest tests/ -v` |
+| Frontend | Vitest | 26 | `pnpm test` |
+| Agent | Go test | 14 | `cd agent && go test ./... -v` |
 
 ## License
 

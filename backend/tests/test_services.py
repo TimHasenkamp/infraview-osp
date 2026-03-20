@@ -83,7 +83,8 @@ async def test_alert_event_lifecycle(client, sample_alert_event):
 async def test_downsample_server_aggregates(db_session: AsyncSession, sample_server):
     """Downsampling should aggregate multiple metrics into fewer rows."""
     now = datetime.utcnow()
-    base_time = now - timedelta(hours=12)
+    # Use a timestamp aligned to a minute boundary to avoid bucket split
+    base_time = datetime(2025, 1, 1, 12, 0, 0)
 
     # Insert 10 metrics within the same 60-second bucket (5s apart, 0-45s)
     for i in range(10):
@@ -104,8 +105,8 @@ async def test_downsample_server_aggregates(db_session: AsyncSession, sample_ser
         db_session.add(m)
     await db_session.flush()
 
-    # Downsample into 60-second buckets — cutoff in the future so all qualify
-    cutoff = now
+    # Downsample into 60-second buckets — cutoff after all metrics
+    cutoff = base_time + timedelta(hours=1)
     removed = await _downsample_server(db_session, sample_server.id, cutoff, 60)
     await db_session.flush()
 
@@ -125,8 +126,8 @@ async def test_downsample_server_aggregates(db_session: AsyncSession, sample_ser
 
 async def test_downsample_preserves_different_buckets(db_session: AsyncSession, sample_server):
     """Metrics in different time buckets should remain separate."""
-    now = datetime.utcnow()
-    base_time = now - timedelta(hours=12)
+    # Use aligned timestamp to avoid bucket splits
+    base_time = datetime(2025, 1, 1, 12, 0, 0)
 
     # Insert 2 metrics in bucket A (0-59s) and 2 in bucket B (60-119s)
     for i, offset in enumerate([0, 5, 60, 65]):
@@ -147,7 +148,7 @@ async def test_downsample_preserves_different_buckets(db_session: AsyncSession, 
         db_session.add(m)
     await db_session.flush()
 
-    cutoff = now
+    cutoff = base_time + timedelta(hours=1)
     removed = await _downsample_server(db_session, sample_server.id, cutoff, 60)
     await db_session.flush()
 
