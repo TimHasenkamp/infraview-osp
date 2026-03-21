@@ -46,13 +46,19 @@ async def login(
         key="infraview_token",
         value=token,
         httponly=True,
+        secure=request.url.scheme == "https",
         samesite="lax",
         max_age=settings.jwt_expire_minutes * 60,
         path="/",
     )
 
+    # Remove initial credentials file after first successful login
+    import os
+    creds_path = "data/initial_credentials.txt"
+    if os.path.exists(creds_path):
+        os.remove(creds_path)
+
     return {
-        "token": token,
         "user": body.username,
         "must_change_password": admin.must_change_password,
     }
@@ -62,6 +68,13 @@ async def login(
 async def logout(response: Response):
     response.delete_cookie("infraview_token", path="/")
     return {"status": "ok"}
+
+
+@router.get("/auth/ws-token")
+async def ws_token(user: dict = Depends(require_auth)):
+    """Return a short-lived token for WebSocket authentication."""
+    token = create_access_token(subject=user["sub"])
+    return {"token": token}
 
 
 @router.get("/auth/me")

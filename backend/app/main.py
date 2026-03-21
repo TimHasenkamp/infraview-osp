@@ -165,8 +165,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Trace-ID"],
 )
 
 
@@ -181,6 +181,10 @@ async def trace_and_log_middleware(request: Request, call_next):
     duration_ms = round((time.monotonic() - start) * 1000, 1)
 
     response.headers["X-Trace-ID"] = trace_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
     # Track Prometheus metrics
     path = request.url.path

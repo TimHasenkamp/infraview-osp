@@ -50,7 +50,8 @@ async def require_auth(request: Request) -> dict:
 def verify_agent_key(key: str | None) -> bool:
     if not key:
         return False
-    return key == settings.agent_api_key
+    import hmac
+    return hmac.compare_digest(key, settings.agent_api_key)
 
 
 async def verify_ws_token(websocket: WebSocket) -> dict | None:

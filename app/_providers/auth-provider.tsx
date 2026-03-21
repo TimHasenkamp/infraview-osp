@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 interface AuthContextType {
   user: string | null;
-  token: string | null;
+  wsToken: string | null;
   loading: boolean;
   mustChangePassword: boolean;
   setMustChangePassword: (v: boolean) => void;
@@ -14,7 +14,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  token: null,
+  wsToken: null,
   loading: true,
   mustChangePassword: false,
   setMustChangePassword: () => {},
@@ -27,7 +27,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [wsToken, setWsToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const router = useRouter();
@@ -39,27 +39,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const savedToken = localStorage.getItem("infraview_token");
-    if (!savedToken) {
-      router.push("/login");
-      setLoading(false);
-      return;
-    }
-
-    fetch("/api/proxy/auth/me", {
-      headers: { Authorization: `Bearer ${savedToken}` },
-    })
+    // Auth via httpOnly cookie — no localStorage
+    fetch("/api/proxy/auth/me")
       .then((res) => {
         if (!res.ok) throw new Error("Unauthorized");
         return res.json();
       })
       .then((data) => {
         setUser(data.user);
-        setToken(savedToken);
         setMustChangePassword(data.must_change_password ?? false);
+        // Fetch WS token (separate from session cookie)
+        return fetch("/api/proxy/auth/ws-token");
       })
+      .then((res) => res.json())
+      .then((data) => setWsToken(data.token))
       .catch(() => {
-        localStorage.removeItem("infraview_token");
         router.push("/login");
       })
       .finally(() => setLoading(false));
@@ -67,9 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await fetch("/api/proxy/auth/logout", { method: "POST" }).catch(() => {});
-    localStorage.removeItem("infraview_token");
     setUser(null);
-    setToken(null);
+    setWsToken(null);
     router.push("/login");
   };
 
@@ -90,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, mustChangePassword, setMustChangePassword, logout }}>
+    <AuthContext.Provider value={{ user, wsToken, loading, mustChangePassword, setMustChangePassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

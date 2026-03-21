@@ -8,8 +8,8 @@ async def test_health_basic(unauthed_client: AsyncClient):
     assert resp.json()["status"] == "ok"
 
 
-async def test_health_detailed(unauthed_client: AsyncClient):
-    resp = await unauthed_client.get("/api/health/detailed")
+async def test_health_detailed(client: AsyncClient):
+    resp = await client.get("/api/health/detailed")
     assert resp.status_code == 200
     data = resp.json()
     assert "status" in data

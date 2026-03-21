@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { useAuth } from "../_providers/auth-provider";
 import { API_BASE_URL } from "../_lib/constants";
 
 interface SettingDef {
@@ -27,7 +26,6 @@ const CATEGORY_CONFIG = {
 } as const;
 
 export default function SettingsPage() {
-  const { token } = useAuth();
   const [settings, setSettings] = useState<SettingsMap>({});
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -39,14 +37,12 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/settings`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
+    fetch(`${API_BASE_URL}/settings`)
       .then((r) => r.json())
       .then((data) => setSettings(data))
       .catch(() => toast.error("Failed to load settings"))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   const handleChange = (key: string, value: string) => {
     setEdited((prev) => ({ ...prev, [key]: value }));
@@ -66,7 +62,6 @@ export default function SettingsPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ settings: edited }),
       });
@@ -75,9 +70,7 @@ export default function SettingsPage() {
       toast.success(`${data.updated.length} setting(s) updated`);
       setEdited({});
       // Reload settings
-      const fresh = await fetch(`${API_BASE_URL}/settings`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const fresh = await fetch(`${API_BASE_URL}/settings`);
       setSettings(await fresh.json());
     } catch {
       toast.error("Failed to save settings");
@@ -101,7 +94,6 @@ export default function SettingsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           current_password: currentPassword,

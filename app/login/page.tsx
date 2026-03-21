@@ -33,9 +33,6 @@ export default function LoginPage() {
         return;
       }
 
-      const data = await res.json();
-      // Store token for WebSocket auth
-      localStorage.setItem("infraview_token", data.token);
       router.push("/");
       router.refresh();
     } catch {

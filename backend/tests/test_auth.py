@@ -9,7 +9,6 @@ async def test_login_success(unauthed_client: AsyncClient):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "token" in data
     assert data["user"] == "admin"
     assert "must_change_password" in data
     assert "infraview_token" in resp.cookies

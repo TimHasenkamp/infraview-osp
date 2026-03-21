@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "./auth-provider";
 import { useWebSocket } from "../_hooks/use-websocket";
 import type { Server, ProcessInfo, UpdatesInfo } from "../_lib/types";
 
@@ -51,7 +52,8 @@ export function useWSContext() {
 }
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
-  const { status, lastMessage, sendMessage } = useWebSocket();
+  const { wsToken } = useAuth();
+  const { status, lastMessage, sendMessage } = useWebSocket(wsToken);
   const [servers, setServers] = useState<Map<string, MetricUpdate>>(new Map());
   const [lastAlert, setLastAlert] = useState<AlertPayload | null>(null);
 

@@ -1,3 +1,5 @@
+import sys
+
 from pydantic_settings import BaseSettings
 
 
@@ -12,10 +14,10 @@ class Settings(BaseSettings):
     agent_timeout_seconds: int = 30
 
     # Auth
-    jwt_secret_key: str = "change-me-in-production"
+    jwt_secret_key: str = ""
     jwt_expire_minutes: int = 480
     admin_user: str = "admin"
-    agent_api_key: str = "change-me-in-production"
+    agent_api_key: str = ""
 
     # Data retention
     metric_retention_days: int = 30
@@ -28,3 +30,14 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+_INSECURE_DEFAULTS = {"", "change-me-in-production"}
+_missing = []
+if settings.jwt_secret_key in _INSECURE_DEFAULTS:
+    _missing.append("JWT_SECRET_KEY")
+if settings.agent_api_key in _INSECURE_DEFAULTS:
+    _missing.append("AGENT_API_KEY")
+if _missing:
+    print(f"\nFATAL: Required secrets not set: {', '.join(_missing)}", file=sys.stderr)
+    print("Generate with: openssl rand -hex 32\n", file=sys.stderr)
+    sys.exit(1)

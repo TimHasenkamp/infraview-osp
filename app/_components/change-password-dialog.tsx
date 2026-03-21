@@ -35,12 +35,10 @@ export function ChangePasswordDialog() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem("infraview_token");
       const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           current_password: currentPassword,

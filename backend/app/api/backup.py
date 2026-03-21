@@ -82,10 +82,34 @@ async def restore_backup(file: UploadFile = File(...)):
     if os.path.exists(DB_PATH):
         shutil.copy2(DB_PATH, safety_path)
 
-    # Write uploaded file to DB path
+    # Read and validate uploaded file
     content = await file.read()
-    with open(DB_PATH, "wb") as f:
+
+    # Max 100MB
+    if len(content) > 100 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 100MB)")
+
+    # Validate SQLite magic bytes
+    if content[:16] != b"SQLite format 3\x00":
+        raise HTTPException(status_code=400, detail="Invalid SQLite database file")
+
+    # Write to temporary path first, then swap
+    tmp_path = DB_PATH + ".tmp"
+    with open(tmp_path, "wb") as f:
         f.write(content)
+
+    # Verify the temp DB is readable
+    import sqlite3
+    try:
+        conn = sqlite3.connect(tmp_path)
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        conn.close()
+    except Exception:
+        os.remove(tmp_path)
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid database")
+
+    # Swap into place
+    os.replace(tmp_path, DB_PATH)
 
     size = len(content)
     logger.info(f"Database restored from upload ({size} bytes). Safety backup at {safety_path}")

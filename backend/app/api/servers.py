@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -126,19 +126,32 @@ async def get_server(server_id: str, db: AsyncSession = Depends(get_db)):
     return _build_server_response(server, containers, latest_metric)
 
 
+import re
+
+_TAG_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$")
+
+
 class UpdateTagsRequest(BaseModel):
-    tags: list[str]
+    tags: list[str] = Field(max_length=20)
 
 
 @router.put("/servers/{server_id}/tags")
 async def update_tags(
     server_id: str, body: UpdateTagsRequest, db: AsyncSession = Depends(get_db)
 ):
+    cleaned = [t.strip() for t in body.tags if t.strip()]
+    for tag in cleaned:
+        if not _TAG_PATTERN.match(tag):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid tag '{tag}': only alphanumeric, dots, dashes, underscores (max 50 chars)",
+            )
+
     result = await db.execute(select(Server).where(Server.id == server_id))
     server = result.scalar_one_or_none()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
 
-    server.tags = ",".join(t.strip() for t in body.tags if t.strip())
+    server.tags = ",".join(cleaned)
     await db.commit()
-    return {"status": "ok", "tags": [t.strip() for t in body.tags if t.strip()]}
+    return {"status": "ok", "tags": cleaned}

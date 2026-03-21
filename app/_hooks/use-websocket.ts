@@ -8,21 +8,22 @@ const MAX_RECONNECT_ATTEMPTS = 20;
 
 type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "failed";
 
-export function useWebSocket() {
+export function useWebSocket(wsToken: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const attemptRef = useRef(0);
+  const tokenRef = useRef(wsToken);
+  tokenRef.current = wsToken;
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (!tokenRef.current) return;
 
     setStatus(attemptRef.current === 0 ? "connecting" : "reconnecting");
 
-    // Append JWT token for WebSocket auth
-    const token = typeof window !== "undefined" ? localStorage.getItem("infraview_token") : null;
-    const wsUrl = token ? `${WS_URL}${WS_URL.includes("?") ? "&" : "?"}token=${token}` : WS_URL;
+    const wsUrl = `${WS_URL}${WS_URL.includes("?") ? "&" : "?"}token=${tokenRef.current}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

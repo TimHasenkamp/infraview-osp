@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import text
+from app.auth import require_auth
 from app.database import async_session
 from app.ws.agent_handler import connected_agents
 from app.ws.client_handler import dashboard_clients
@@ -9,13 +10,13 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
-    """Basic health check."""
+    """Basic health check — no auth required."""
     return {"status": "ok"}
 
 
 @router.get("/health/detailed")
-async def health_detailed():
-    """Detailed health check with dependency status."""
+async def health_detailed(_user: dict = Depends(require_auth)):
+    """Detailed health check with dependency status. Requires auth."""
     checks = {}
 
     # Database
@@ -26,12 +27,10 @@ async def health_detailed():
     except Exception as e:
         checks["database"] = {"status": "error", "error": str(e)}
 
-    # Connected agents
-    agent_ids = list(connected_agents.keys())
+    # Connected agents — count only, no IDs
     checks["agents"] = {
-        "status": "ok" if agent_ids else "no_agents",
-        "connected": len(agent_ids),
-        "ids": agent_ids,
+        "status": "ok" if connected_agents else "no_agents",
+        "connected": len(connected_agents),
     }
 
     # Dashboard clients
