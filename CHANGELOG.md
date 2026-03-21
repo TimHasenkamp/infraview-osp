@@ -1,8 +1,8 @@
 # Changelog
 
-## v1.0.0 (2026-03-21)
+## v0.1.0 (2026-03-21)
 
-First stable release of InfraView — a self-hosted, real-time server monitoring platform.
+Initial preview release of InfraView — a self-hosted, real-time server monitoring platform.
 
 ### Core
 
