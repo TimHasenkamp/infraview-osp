@@ -36,6 +36,7 @@ export function ProcessList({ processes: initialProcesses, serverId }: ProcessLi
         {processes.length === 0 ? (
           <p className="text-sm text-muted-foreground">No process data available</p>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -72,6 +73,7 @@ export function ProcessList({ processes: initialProcesses, serverId }: ProcessLi
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>

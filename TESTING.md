@@ -2,7 +2,7 @@
 
 ## Backend (Python / pytest)
 
-**39 Tests** — API routes, auth, services, downsampling
+**57 Tests** — API routes, auth, settings, services, observability, backup
 
 ```bash
 cd backend
@@ -25,6 +25,9 @@ pytest tests/ --cov=app --cov-report=term-missing
 | `tests/test_alerts.py` | Alert CRUD, Events Pagination, Acknowledge/Resolve |
 | `tests/test_health.py` | Health-Endpoint |
 | `tests/test_services.py` | Alert-Evaluation, Downsampling-Aggregation |
+| `tests/test_settings.py` | Settings CRUD, Passwort-Maskierung, Auth |
+| `tests/test_observability.py` | Health Checks, Prometheus Metrics, Trace IDs |
+| `tests/test_backup.py` | Backup Create/List/Download, Restore, Auth |
 
 Tests nutzen eine In-Memory SQLite DB (`conftest.py`), keine externe Infrastruktur nötig.
 

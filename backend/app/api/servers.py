@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -60,6 +61,7 @@ def _build_server_response(server, containers, latest_metric=None):
         disk=disk,
         network=network,
         load=load,
+        tags=[t.strip() for t in (server.tags or "").split(",") if t.strip()],
         containers=[
             ContainerSchema(
                 id=c.id,
@@ -120,3 +122,21 @@ async def get_server(server_id: str, db: AsyncSession = Depends(get_db)):
     latest_metric = metric_result.scalar_one_or_none()
 
     return _build_server_response(server, containers, latest_metric)
+
+
+class UpdateTagsRequest(BaseModel):
+    tags: list[str]
+
+
+@router.put("/servers/{server_id}/tags")
+async def update_tags(
+    server_id: str, body: UpdateTagsRequest, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Server).where(Server.id == server_id))
+    server = result.scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    server.tags = ",".join(t.strip() for t in body.tags if t.strip())
+    await db.commit()
+    return {"status": "ok", "tags": [t.strip() for t in body.tags if t.strip()]}

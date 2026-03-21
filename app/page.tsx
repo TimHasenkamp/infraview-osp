@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header serverCount={servers.length} onlineCount={onlineCount} />
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 sm:p-6">
         <ServerGrid servers={servers} />
       </main>
     </div>

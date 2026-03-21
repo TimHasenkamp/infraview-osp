@@ -15,3 +15,4 @@ class Server(Base):
     cpu_cores: Mapped[int | None] = mapped_column(Integer, nullable=True)
     memory_total_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     disk_total_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tags: Mapped[str | None] = mapped_column(String, nullable=True, default="")

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import secrets
 import string
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, Request, Response
@@ -14,12 +15,14 @@ from app.config import settings
 from app.database import init_db, async_session
 from app.models import Metric, AdminUser
 from app.auth import require_auth, hash_password
-from app.api import health, servers, metrics, containers, alerts
+from app.api import health, servers, metrics, containers, alerts, settings as settings_routes, backup, uptime
 from app.api import auth as auth_routes
 from app.ws import agent_handler, client_handler
 from app.services.downsampling import downsample_metrics
+from app.logging_config import setup_logging, generate_trace_id, trace_id_var
+from app.metrics import router as metrics_router, REQUEST_COUNT, REQUEST_DURATION
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
@@ -139,8 +142,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def trace_and_log_middleware(request: Request, call_next):
+    """Attach trace ID to every request and log structured request/response info."""
+    trace_id = request.headers.get("X-Trace-ID") or generate_trace_id()
+    trace_id_var.set(trace_id)
+
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = round((time.monotonic() - start) * 1000, 1)
+
+    response.headers["X-Trace-ID"] = trace_id
+
+    # Track Prometheus metrics
+    path = request.url.path
+    if path != "/api/metrics":
+        REQUEST_COUNT.labels(
+            method=request.method, path=path, status=response.status_code
+        ).inc()
+        REQUEST_DURATION.labels(
+            method=request.method, path=path
+        ).observe(duration_ms / 1000)
+
+    # Skip logging for health checks and WebSocket upgrades
+    if path != "/api/health" and "websocket" not in str(request.headers.get("upgrade", "")):
+        logger.info(
+            f"{request.method} {path} {response.status_code} ({duration_ms}ms)",
+            extra={
+                "method": request.method,
+                "path": path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+                "client_ip": request.client.host if request.client else "",
+            },
+        )
+
+    return response
+
+
 # Public routes (no auth)
 app.include_router(health.router, prefix="/api", tags=["health"])
+app.include_router(metrics_router, prefix="/api", tags=["prometheus"])
 app.include_router(auth_routes.router, prefix="/api", tags=["auth"])
 
 # Protected routes (require JWT)
@@ -148,6 +191,9 @@ app.include_router(servers.router, prefix="/api", tags=["servers"], dependencies
 app.include_router(metrics.router, prefix="/api", tags=["metrics"], dependencies=[Depends(require_auth)])
 app.include_router(containers.router, prefix="/api", tags=["containers"], dependencies=[Depends(require_auth)])
 app.include_router(alerts.router, prefix="/api", tags=["alerts"], dependencies=[Depends(require_auth)])
+app.include_router(settings_routes.router, prefix="/api", tags=["settings"], dependencies=[Depends(require_auth)])
+app.include_router(backup.router, prefix="/api", tags=["backup"], dependencies=[Depends(require_auth)])
+app.include_router(uptime.router, prefix="/api", tags=["uptime"], dependencies=[Depends(require_auth)])
 
 # WebSocket (auth handled inside handlers)
 app.include_router(agent_handler.router, tags=["websocket"])

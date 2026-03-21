@@ -80,21 +80,21 @@
 - [ ] Helm chart for configurable deployments
 - [ ] Automated release versioning (semantic-release)
 
-## Phase 9 — Observability & Operations
+## Phase 9 — Observability & Operations ✅
 
-- [ ] Structured JSON logging across all services
-- [ ] Prometheus `/metrics` endpoint on backend
-- [ ] Request tracing (trace IDs through WebSocket → API → DB)
-- [ ] Backend health check with dependency status (DB, connected agents)
-- [ ] Backup & restore strategy for SQLite/PostgreSQL
-- [ ] Runbook documentation for common incidents
+- [x] Structured JSON logging (backend)
+- [x] Prometheus `/metrics` endpoint on backend
+- [x] Request tracing (trace IDs through HTTP middleware)
+- [x] Backend health check with dependency status (DB, connected agents)
+- [x] Backup & restore API (create, download, list, restore with safety backup)
+- [x] Runbook documentation for common incidents
 
-## Phase 10 — UX & Features
+## Phase 10 — UX & Features ✅
 
+- [x] Dark/light theme toggle (next-themes, Sun/Moon toggle in header)
+- [x] Server grouping / tagging (comma-separated tags, filter bar on dashboard)
+- [x] Mobile-responsive improvements (header, layout, scrollable tables)
+- [x] Uptime history / SLA tracking (30-day bar chart, daily breakdown API)
 - [ ] Dashboard customization (drag & drop widget layout)
-- [ ] Dark/light theme toggle
-- [ ] Server grouping / tagging
 - [ ] Multi-user notification preferences
 - [ ] Metric annotations (mark deployments, incidents on charts)
-- [ ] Mobile-responsive improvements
-- [ ] Uptime history / SLA tracking

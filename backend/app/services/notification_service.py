@@ -3,11 +3,36 @@ import logging
 import aiosmtplib
 from email.message import EmailMessage
 import httpx
+from sqlalchemy import select
 from app.config import settings
+from app.database import async_session
+from app.models import AppSettings
 
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
+
+
+async def _get_smtp_config() -> dict:
+    """Load SMTP settings from DB, fall back to ENV."""
+    keys = ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "alert_from_email"]
+    db_vals = {}
+    try:
+        async with async_session() as session:
+            rows = await session.execute(
+                select(AppSettings).where(AppSettings.key.in_(keys))
+            )
+            db_vals = {r.key: r.value for r in rows.scalars().all()}
+    except Exception:
+        pass
+
+    return {
+        "host": db_vals.get("smtp_host") or settings.smtp_host,
+        "port": int(db_vals.get("smtp_port") or settings.smtp_port),
+        "user": db_vals.get("smtp_user") or settings.smtp_user,
+        "password": db_vals.get("smtp_pass") or settings.smtp_pass,
+        "from_email": db_vals.get("alert_from_email") or settings.alert_from_email,
+    }
 
 
 async def _retry(coro_fn, retries=MAX_RETRIES, backoff_base=2, label="operation"):
@@ -27,12 +52,14 @@ async def _retry(coro_fn, retries=MAX_RETRIES, backoff_base=2, label="operation"
 
 
 async def send_email_alert(to: str, message: str, severity: str) -> bool:
-    if not settings.smtp_host:
+    smtp = await _get_smtp_config()
+
+    if not smtp["host"]:
         logger.warning("SMTP not configured, skipping email alert")
         return False
 
     msg = EmailMessage()
-    msg["From"] = settings.alert_from_email
+    msg["From"] = smtp["from_email"]
     msg["To"] = to
     msg["Subject"] = f"[InfraView {severity.upper()}] Alert"
     msg.set_content(message)
@@ -40,10 +67,10 @@ async def send_email_alert(to: str, message: str, severity: str) -> bool:
     async def _send():
         await aiosmtplib.send(
             msg,
-            hostname=settings.smtp_host,
-            port=settings.smtp_port,
-            username=settings.smtp_user or None,
-            password=settings.smtp_pass or None,
+            hostname=smtp["host"],
+            port=smtp["port"],
+            username=smtp["user"] or None,
+            password=smtp["password"] or None,
             start_tls=True,
             timeout=15,
         )

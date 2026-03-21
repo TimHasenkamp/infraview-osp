@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, Bell, Wifi, WifiOff, LogOut } from "lucide-react";
+import { Activity, Bell, Settings, Wifi, WifiOff, LogOut, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,23 +24,24 @@ const statusConfig = {
 export function Header({ serverCount, onlineCount }: HeaderProps) {
   const { status: wsStatus } = useWSContext();
   const { logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const allOnline = onlineCount === serverCount;
   const wsConfig = statusConfig[wsStatus as keyof typeof statusConfig] ?? statusConfig.failed;
   const WsIcon = wsConfig.icon;
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="flex items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary">
-            <Activity className="h-5 w-5" />
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
+          <div className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-primary/10 text-primary">
+            <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">InfraView</h1>
-            <p className="text-xs text-muted-foreground">Server Monitoring</p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">InfraView</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">Server Monitoring</p>
           </div>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>
@@ -58,9 +60,22 @@ export function Header({ serverCount, onlineCount }: HeaderProps) {
               <Bell className="h-4 w-4" />
             </Button>
           </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <Link href="/settings">
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
           <Badge
             variant={allOnline ? "default" : "destructive"}
-            className="gap-1.5 text-sm px-3 py-1"
+            className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-1 hidden sm:inline-flex"
           >
             <span
               className={`inline-block h-2 w-2 rounded-full ${

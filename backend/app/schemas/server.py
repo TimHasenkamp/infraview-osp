@@ -78,6 +78,7 @@ class ServerResponse(BaseModel):
     disk: DiskMetrics | None = None
     network: NetworkMetrics | None = None
     load: LoadMetrics | None = None
+    tags: list[str] = []
     containers: list[ContainerSchema] = []
 
     model_config = {"from_attributes": True}

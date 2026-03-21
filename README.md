@@ -301,6 +301,48 @@ pnpm dev
 | `DOWNSAMPLE_5MIN_AFTER_HOURS` | `48` | Aggregate to 5min averages after N hours |
 | `DOWNSAMPLE_1H_AFTER_HOURS` | `168` | Aggregate to 1h averages after N hours |
 
+## Deployment Templates
+
+Vorgefertigte Docker Compose Konfigurationen unter [`deploy/compose/`](deploy/compose/):
+
+| Template | Datei | Beschreibung |
+|----------|-------|-------------|
+| **Traefik** | `docker-compose.traefik.yml` | Automatisches Let's Encrypt SSL |
+| **Caddy** | `docker-compose.caddy.yml` | Zero-Config HTTPS (einfachste Option) |
+| **nginx + eigenes Zertifikat** | `docker-compose.nginx-ssl.yml` | Eigenes SSL-Zertifikat mitbringen |
+| **Agent only** | `docker-compose.agent-only.yml` | Nur Agent auf Remote-Servern |
+
+**Beispiel mit Caddy (empfohlen):**
+
+```bash
+cd deploy/compose
+export DOMAIN=monitor.example.com
+export JWT_SECRET_KEY=$(openssl rand -hex 32)
+export AGENT_API_KEY=$(openssl rand -hex 16)
+docker compose -f docker-compose.caddy.yml up -d
+```
+
+**Beispiel mit eigenem Zertifikat:**
+
+```bash
+cd deploy/compose
+mkdir certs
+cp /path/to/fullchain.pem certs/
+cp /path/to/privkey.pem certs/
+export DOMAIN=monitor.example.com
+export JWT_SECRET_KEY=$(openssl rand -hex 32)
+export AGENT_API_KEY=$(openssl rand -hex 16)
+docker compose -f docker-compose.nginx-ssl.yml up -d
+```
+
+**Remote-Server Agent:**
+
+```bash
+export BACKEND_HOST=monitor.example.com
+export AGENT_API_KEY=your-agent-key
+docker compose -f docker-compose.agent-only.yml up -d
+```
+
 ## CI/CD
 
 Push/PR to `main` triggers the CI pipeline (`.github/workflows/ci.yml`):
@@ -388,6 +430,7 @@ infraview-osp/
 ├── components/ui/          # shadcn/ui components
 ├── tests/                  # Frontend tests (Vitest)
 ├── deploy/k8s/             # Kubernetes manifests
+├── deploy/compose/         # Docker Compose templates (Traefik, Caddy, nginx)
 ├── .github/workflows/      # CI/CD pipelines
 ├── docker-compose.yml      # Production setup
 └── docker-compose.dev.yml  # Development setup (hot-reload)
@@ -399,9 +442,38 @@ See [TESTING.md](TESTING.md) for details on running tests.
 
 | Suite | Framework | Count | Command |
 |-------|-----------|-------|---------|
-| Backend | pytest | 39 | `cd backend && pytest tests/ -v` |
+| Backend | pytest | 57 | `cd backend && pytest tests/ -v` |
 | Frontend | Vitest | 26 | `pnpm test` |
 | Agent | Go test | 14 | `cd agent && go test ./... -v` |
+
+## Observability
+
+**Structured Logging** — Backend logs in JSON format with trace IDs:
+```json
+{"timestamp":"2026-03-20T20:00:00Z","level":"info","logger":"app.main","message":"GET /api/servers 200 (12.3ms)","trace_id":"a1b2c3d4e5f6g7h8","method":"GET","path":"/api/servers","status_code":200,"duration_ms":12.3}
+```
+
+**Prometheus Metrics** — `GET /api/metrics` (no auth required):
+- `infraview_http_requests_total` — request count by method/path/status
+- `infraview_http_request_duration_seconds` — request latency histogram
+- `infraview_connected_agents` — current agent connections
+- `infraview_connected_dashboards` — current dashboard connections
+- `infraview_alerts_fired_total` — alerts by severity
+- `infraview_metrics_ingested_total` — snapshots received from agents
+
+**Health Checks:**
+- `GET /api/health` — basic liveness check
+- `GET /api/health/detailed` — DB, agents, dashboards status
+
+**Request Tracing** — every response includes `X-Trace-ID`. Pass `X-Trace-ID` header to correlate requests.
+
+**Backup & Restore:**
+- `POST /api/backup` — create backup
+- `GET /api/backup/download` — download DB file
+- `GET /api/backup/list` — list available backups
+- `POST /api/backup/restore` — restore from uploaded .db file (auto-creates safety backup)
+
+See [RUNBOOK.md](RUNBOOK.md) for troubleshooting common issues.
 
 ## License
 

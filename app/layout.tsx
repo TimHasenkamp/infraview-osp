@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "./_providers/auth-provider";
@@ -22,16 +23,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistMono.variable} dark h-full antialiased`}>
+    <html lang="en" className={`${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col font-mono">
-        <TooltipProvider>
-          <AuthProvider>
-            <WebSocketProvider>
-              {children}
-            </WebSocketProvider>
-          </AuthProvider>
-        </TooltipProvider>
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <TooltipProvider>
+            <AuthProvider>
+              <WebSocketProvider>
+                {children}
+              </WebSocketProvider>
+            </AuthProvider>
+          </TooltipProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

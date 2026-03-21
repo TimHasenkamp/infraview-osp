@@ -10,6 +10,7 @@ from app.models import Server, Metric, Container
 from app.schemas.ws_message import SystemSnapshot
 from app.auth import verify_agent_key, verify_ws_token
 from app.ws.client_handler import broadcast_to_dashboards
+from app.metrics import CONNECTED_AGENTS, METRICS_INGESTED
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,8 @@ async def agent_websocket(websocket: WebSocket):
                 agent_id = snapshot.agent_id
                 connected_agents[agent_id] = websocket
                 agent_last_seen[agent_id] = datetime.utcnow().timestamp()
+                CONNECTED_AGENTS.set(len(connected_agents))
+                METRICS_INGESTED.inc()
 
                 await _process_snapshot(snapshot)
 
@@ -84,6 +87,7 @@ async def agent_websocket(websocket: WebSocket):
         if agent_id:
             connected_agents.pop(agent_id, None)
             agent_last_seen.pop(agent_id, None)
+            CONNECTED_AGENTS.set(len(connected_agents))
             await _mark_offline(agent_id)
             await broadcast_to_dashboards({
                 "type": "server_status",

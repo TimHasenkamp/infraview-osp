@@ -8,6 +8,7 @@ export function normalizeServer(raw: ServerResponse): Server {
     disk: raw.disk ?? { usage_percent: 0, total_bytes: 0, used_bytes: 0, free_bytes: 0, path: "/" },
     network: raw.network ?? { bytes_sent: 0, bytes_recv: 0, packets_sent: 0, packets_recv: 0 },
     load: raw.load ?? { load1: 0, load5: 0, load15: 0 },
+    tags: raw.tags ?? [],
   };
 }
 

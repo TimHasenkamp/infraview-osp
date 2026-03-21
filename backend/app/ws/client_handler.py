@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 from app.auth import verify_ws_token
+from app.metrics import CONNECTED_DASHBOARDS
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ async def dashboard_websocket(websocket: WebSocket):
 
     await websocket.accept()
     dashboard_clients.add(websocket)
+    CONNECTED_DASHBOARDS.set(len(dashboard_clients))
     logger.info(f"Dashboard client connected. Total: {len(dashboard_clients)}")
 
     try:
@@ -44,10 +46,12 @@ async def dashboard_websocket(websocket: WebSocket):
                 )
     except WebSocketDisconnect:
         dashboard_clients.discard(websocket)
+        CONNECTED_DASHBOARDS.set(len(dashboard_clients))
         logger.info(f"Dashboard client disconnected. Total: {len(dashboard_clients)}")
     except Exception as e:
         logger.error(f"Dashboard WS error: {e}")
         dashboard_clients.discard(websocket)
+        CONNECTED_DASHBOARDS.set(len(dashboard_clients))
 
 
 async def broadcast_to_dashboards(message: dict):

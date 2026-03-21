@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Cpu, MemoryStick, HardDrive, Container } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "./status-badge";
 import { MetricGauge } from "./metric-gauge";
@@ -32,6 +33,15 @@ export function ServerCard({ server }: ServerCardProps) {
               {runningContainers}/{server.containers.length} containers
             </span>
           </div>
+          {server.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {server.tags.map((tag) => (
+                <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           <MetricGauge

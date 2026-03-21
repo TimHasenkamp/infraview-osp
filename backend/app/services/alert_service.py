@@ -7,6 +7,7 @@ from app.models import AlertRule, AlertEvent
 from app.schemas.ws_message import SystemSnapshot
 from app.ws.client_handler import broadcast_to_dashboards
 from app.services.notification_service import send_email_alert, send_webhook_alert
+from app.metrics import ALERTS_FIRED
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,7 @@ async def check_alerts(snapshot: SystemSnapshot):
             if not success:
                 logger.error(f"Webhook notification failed for alert rule {rule.id}")
 
+        ALERTS_FIRED.labels(severity=rule.severity).inc()
         logger.warning(f"Alert fired: {message}")
 
 

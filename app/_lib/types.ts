@@ -75,6 +75,7 @@ export interface Server {
   disk: DiskMetrics;
   network: NetworkMetrics;
   load: LoadMetrics;
+  tags: string[];
   containers: ContainerInfo[];
 }
 
@@ -89,6 +90,7 @@ export interface ServerResponse {
   disk: DiskMetrics | null;
   network: NetworkMetrics | null;
   load: LoadMetrics | null;
+  tags: string[];
   containers: ContainerInfo[];
 }
 
