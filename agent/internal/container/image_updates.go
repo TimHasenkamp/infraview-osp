@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,10 +18,10 @@ import (
 
 // ImageUpdateInfo holds update status for a container image
 type ImageUpdateInfo struct {
-	Image          string `json:"image"`
-	CurrentDigest  string `json:"current_digest"`
-	LatestDigest   string `json:"latest_digest"`
-	UpdateAvail    bool   `json:"update_available"`
+	Image         string `json:"image"`
+	CurrentTag    string `json:"current_tag"`
+	LatestTag     string `json:"latest_tag"`
+	UpdateAvail   bool   `json:"update_available"`
 }
 
 // ImageUpdateChecker periodically checks if container images have newer versions
@@ -80,7 +83,11 @@ func (c *ImageUpdateChecker) Check(ctx context.Context, images []string) map[str
 		info := c.checkImage(ctx, img)
 		newCache[img] = info
 		if info.UpdateAvail {
-			log.Info().Str("image", img).Msg("Image update available")
+			log.Info().
+				Str("image", img).
+				Str("current", info.CurrentTag).
+				Str("latest", info.LatestTag).
+				Msg("Image update available")
 		}
 	}
 
@@ -89,54 +96,94 @@ func (c *ImageUpdateChecker) Check(ctx context.Context, images []string) map[str
 	return newCache
 }
 
+var semverRegex = regexp.MustCompile(`^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$`)
+
+type semver struct {
+	Major int
+	Minor int
+	Patch int
+	Raw   string
+}
+
+func parseSemver(tag string) (semver, bool) {
+	m := semverRegex.FindStringSubmatch(tag)
+	if m == nil {
+		return semver{}, false
+	}
+	sv := semver{Raw: tag}
+	sv.Major, _ = strconv.Atoi(m[1])
+	if m[2] != "" {
+		sv.Minor, _ = strconv.Atoi(m[2])
+	}
+	if m[3] != "" {
+		sv.Patch, _ = strconv.Atoi(m[3])
+	}
+	return sv, true
+}
+
+func (a semver) Less(b semver) bool {
+	if a.Major != b.Major {
+		return a.Major < b.Major
+	}
+	if a.Minor != b.Minor {
+		return a.Minor < b.Minor
+	}
+	return a.Patch < b.Patch
+}
+
 func (c *ImageUpdateChecker) checkImage(ctx context.Context, image string) *ImageUpdateInfo {
 	info := &ImageUpdateInfo{
 		Image:       image,
 		UpdateAvail: false,
 	}
 
-	// Get local image digest
-	inspect, _, err := c.cli.ImageInspectWithRaw(ctx, image)
-	if err != nil {
-		log.Debug().Err(err).Str("image", image).Msg("Failed to inspect local image")
+	// Skip locally built images (no tag with version or no registry reference)
+	registry, repo, tag := parseImageRef(image)
+	info.CurrentTag = tag
+
+	// Skip images without a versioned tag (e.g. "latest", locally built)
+	currentVer, isVersioned := parseSemver(tag)
+	if !isVersioned {
 		return info
 	}
 
-	// Get the repo digest (the one from the registry)
-	localDigest := ""
-	for _, d := range inspect.RepoDigests {
-		parts := strings.SplitN(d, "@", 2)
-		if len(parts) == 2 {
-			localDigest = parts[1]
-			break
+	// Query registry for available tags
+	tags, err := c.getRegistryTags(ctx, registry, repo)
+	if err != nil {
+		log.Debug().Err(err).Str("image", image).Msg("Failed to get registry tags")
+		return info
+	}
+
+	// Find the latest semver tag in the same major version line
+	var candidates []semver
+	for _, t := range tags {
+		sv, ok := parseSemver(t)
+		if !ok {
+			continue
+		}
+		// Same major version, newer minor/patch
+		if sv.Major == currentVer.Major && currentVer.Less(sv) {
+			candidates = append(candidates, sv)
 		}
 	}
-	info.CurrentDigest = localDigest
 
-	if localDigest == "" {
-		// Locally built image, no registry digest
+	if len(candidates) == 0 {
 		return info
 	}
 
-	// Parse image reference into registry/repo/tag
-	registry, repo, tag := parseImageRef(image)
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Less(candidates[j])
+	})
 
-	// Get remote digest from registry
-	remoteDigest, err := c.getRemoteDigest(ctx, registry, repo, tag)
-	if err != nil {
-		log.Debug().Err(err).Str("image", image).Msg("Failed to get remote digest")
-		return info
-	}
-
-	info.LatestDigest = remoteDigest
-	info.UpdateAvail = remoteDigest != "" && localDigest != "" && remoteDigest != localDigest
+	latest := candidates[len(candidates)-1]
+	info.LatestTag = latest.Raw
+	info.UpdateAvail = true
 
 	return info
 }
 
 // parseImageRef splits an image reference into registry, repository, and tag
 func parseImageRef(image string) (registry, repo, tag string) {
-	// Default values
 	registry = "registry-1.docker.io"
 	tag = "latest"
 
@@ -144,12 +191,10 @@ func parseImageRef(image string) (registry, repo, tag string) {
 
 	// Extract tag
 	if atIdx := strings.LastIndex(ref, "@"); atIdx != -1 {
-		// Image with digest, skip tag extraction
 		ref = ref[:atIdx]
 	}
 	if colonIdx := strings.LastIndex(ref, ":"); colonIdx != -1 {
 		possibleTag := ref[colonIdx+1:]
-		// Make sure it's a tag, not a port
 		if !strings.Contains(possibleTag, "/") {
 			tag = possibleTag
 			ref = ref[:colonIdx]
@@ -159,41 +204,34 @@ func parseImageRef(image string) (registry, repo, tag string) {
 	// Extract registry
 	parts := strings.SplitN(ref, "/", 2)
 	if len(parts) == 1 {
-		// Just image name, e.g. "nginx"
 		repo = "library/" + parts[0]
 	} else if strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":") || parts[0] == "localhost" {
-		// Has registry, e.g. "ghcr.io/user/repo"
 		registry = parts[0]
 		repo = parts[1]
 	} else {
-		// Docker Hub with namespace, e.g. "user/repo"
 		repo = ref
 	}
 
 	return registry, repo, tag
 }
 
-// getRemoteDigest queries the registry v2 API for the manifest digest
-func (c *ImageUpdateChecker) getRemoteDigest(ctx context.Context, registry, repo, tag string) (string, error) {
-	// Get auth token if Docker Hub
+// getRegistryTags fetches all available tags from the registry
+func (c *ImageUpdateChecker) getRegistryTags(ctx context.Context, registry, repo string) ([]string, error) {
 	token := ""
 	if registry == "registry-1.docker.io" {
 		var err error
 		token, err = c.getDockerHubToken(ctx, repo)
 		if err != nil {
-			return "", fmt.Errorf("auth failed: %w", err)
+			return nil, fmt.Errorf("auth failed: %w", err)
 		}
 	}
 
-	url := fmt.Sprintf("https://%s/v2/%s/manifests/%s", registry, repo, tag)
+	url := fmt.Sprintf("https://%s/v2/%s/tags/list", registry, repo)
 
-	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// Accept manifest list (multi-arch) and single manifest
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.index.v1+json")
 
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -201,16 +239,22 @@ func (c *ImageUpdateChecker) getRemoteDigest(ctx context.Context, registry, repo
 
 	resp, err := c.httpCli.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("registry returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("registry returned %d", resp.StatusCode)
 	}
 
-	digest := resp.Header.Get("Docker-Content-Digest")
-	return digest, nil
+	var result struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result.Tags, nil
 }
 
 type dockerAuthResponse struct {

@@ -70,6 +70,8 @@ def _build_server_response(server, containers, latest_metric=None):
                 state=c.state,
                 status=c.status or "",
                 created=int(c.created.timestamp()) if c.created else 0,
+                update_available=c.update_available or False,
+                latest_version=c.latest_version,
             )
             for c in containers
         ],

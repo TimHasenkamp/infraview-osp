@@ -89,6 +89,26 @@ async def _ensure_admin_user():
             logger.info(f"Admin user '{settings.admin_user}' already exists")
 
 
+_MIGRATIONS = [
+    ("containers", "update_available", "BOOLEAN DEFAULT 0"),
+    ("containers", "latest_version", "VARCHAR"),
+    ("servers", "tags", "VARCHAR DEFAULT ''"),
+]
+
+
+async def _auto_migrate():
+    """Add missing columns to existing tables."""
+    async with async_session() as session:
+        for table, column, col_type in _MIGRATIONS:
+            try:
+                await session.execute(text(f"SELECT {column} FROM {table} LIMIT 1"))
+            except Exception:
+                await session.rollback()
+                logger.info(f"Adding column {table}.{column}")
+                await session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                await session.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -99,6 +119,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Database connectivity check failed: {e}")
         raise
+
+    # Auto-migrate: add missing columns
+    await _auto_migrate()
 
     # Ensure admin user exists
     await _ensure_admin_user()

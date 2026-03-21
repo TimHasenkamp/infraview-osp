@@ -149,6 +149,7 @@ func main() {
 					for i, c := range containers {
 						if info, ok := updates[c.Image]; ok {
 							containers[i].UpdateAvailable = info.UpdateAvail
+							containers[i].LatestVersion = info.LatestTag
 						}
 					}
 				}

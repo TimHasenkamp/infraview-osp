@@ -63,6 +63,7 @@ export interface ContainerInfo {
   status: string;
   created: number;
   update_available?: boolean;
+  latest_version?: string | null;
 }
 
 export interface Server {

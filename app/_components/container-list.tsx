@@ -82,14 +82,20 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
                   {container.name}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground font-mono">
-                  <span className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     {container.image}
-                    {container.update_available && (
+                    {container.update_available && container.latest_version && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-400 border-amber-500/20 shrink-0">
+                        <ArrowUpCircle className="h-2.5 w-2.5 mr-0.5" />
+                        {container.latest_version}
+                      </Badge>
+                    )}
+                    {container.update_available && !container.latest_version && (
                       <span title="Image update available">
                         <ArrowUpCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                       </span>
                     )}
-                  </span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge

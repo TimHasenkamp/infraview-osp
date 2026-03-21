@@ -50,5 +50,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
 
+  # Test container with outdated image for update detection demo
+  demo-nginx:
+    image: nginx:1.24
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  demo-redis:
+    image: redis:7.0
+    restart: unless-stopped
+
 volumes:
   backend-data:

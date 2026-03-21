@@ -199,6 +199,8 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                         status=c.status,
                         created=datetime.utcfromtimestamp(c.created) if c.created else None,
                         updated_at=now,
+                        update_available=c.update_available if hasattr(c, 'update_available') else False,
+                        latest_version=c.latest_version if hasattr(c, 'latest_version') else None,
                     )
                 )
 

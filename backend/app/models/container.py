@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, DateTime
+from sqlalchemy import Boolean, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -15,3 +15,5 @@ class Container(Base):
     status: Mapped[str | None] = mapped_column(String, nullable=True)
     created: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    update_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    latest_version: Mapped[str | None] = mapped_column(String, nullable=True)

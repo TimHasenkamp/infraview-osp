@@ -53,6 +53,7 @@ type ContainerInfo struct {
 	Status          string `json:"status"`
 	Created         int64  `json:"created"`
 	UpdateAvailable bool   `json:"update_available"`
+	LatestVersion   string `json:"latest_version,omitempty"`
 }
 
 type SystemSnapshot struct {
