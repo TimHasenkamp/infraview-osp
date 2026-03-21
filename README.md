@@ -19,13 +19,10 @@
 A Go agent runs on each server and streams system metrics via WebSocket to a FastAPI backend. The Next.js dashboard shows everything in real-time — no Prometheus, no Grafana, no YAML config files.
 
 ```
-┌─────────────┐     WebSocket      ┌─────────────┐     WebSocket      ┌─────────────┐
-│   Go Agent  │ ─────────────────► │   FastAPI    │ ─────────────────► │  Next.js    │
-│  (~5MB bin) │   metrics stream   │   Backend    │   live broadcast   │  Dashboard  │
-└─────────────┘                    └─────────────┘                    └─────────────┘
-     collects                        stores in                         renders
-  CPU, RAM, Disk                   SQLite + alerts                   charts & cards
-  + Docker containers
+Go Agent  ──(WebSocket)──►  FastAPI Backend  ──(WebSocket)──►  Next.js Dashboard
+  ~5MB binary                  SQLite + alerts                   real-time charts
+  CPU, RAM, Disk               metric retention                  container mgmt
+  Docker containers            email/Slack/Discord               dark/light theme
 ```
 
 ## Features
