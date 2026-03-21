@@ -23,6 +23,10 @@ func NewDockerClient() (*DockerClient, error) {
 	return &DockerClient{cli: cli}, nil
 }
 
+func (d *DockerClient) RawClient() *client.Client {
+	return d.cli
+}
+
 func (d *DockerClient) ListContainers(ctx context.Context) ([]collector.ContainerInfo, error) {
 	containers, err := d.cli.ContainerList(ctx, containerTypes.ListOptions{All: false})
 	if err != nil {

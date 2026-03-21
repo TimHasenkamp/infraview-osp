@@ -42,12 +42,14 @@ func main() {
 	coll := collector.New(cfg.AgentID, hostname, cfg.DiskPath)
 
 	var docker container.ContainerManager
+	var imageChecker *container.ImageUpdateChecker
 	dockerClient, err := container.NewDockerClient()
 	if err != nil {
 		log.Warn().Err(err).Msg("Docker not available, running without container monitoring")
 		docker = container.NewStubClient()
 	} else {
 		docker = dockerClient
+		imageChecker = container.NewImageUpdateChecker(dockerClient.RawClient(), 30*time.Minute)
 		defer dockerClient.Close()
 	}
 
@@ -137,6 +139,19 @@ func main() {
 					containerErrLogged = true
 				}
 			} else {
+				// Check for image updates (cached, only hits registry every 30 min)
+				if imageChecker != nil && len(containers) > 0 {
+					images := make([]string, len(containers))
+					for i, c := range containers {
+						images[i] = c.Image
+					}
+					updates := imageChecker.Check(ctx, images)
+					for i, c := range containers {
+						if info, ok := updates[c.Image]; ok {
+							containers[i].UpdateAvailable = info.UpdateAvail
+						}
+					}
+				}
 				snapshot.Containers = containers
 				containerErrLogged = false
 			}

@@ -65,6 +65,7 @@ class ContainerSchema(BaseModel):
     state: str
     status: str
     created: int
+    update_available: bool = False
 
 
 class ServerResponse(BaseModel):

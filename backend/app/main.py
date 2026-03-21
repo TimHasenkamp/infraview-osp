@@ -75,12 +75,16 @@ async def _ensure_admin_user():
                 f.write(f"Username: {settings.admin_user}\n")
                 f.write(f"Password: {password}\n")
 
-            logger.info("=" * 60)
-            logger.info("  INITIAL ADMIN CREDENTIALS")
-            logger.info(f"  Username: {settings.admin_user}")
-            logger.info(f"  Password: {password}")
-            logger.info(f"  Saved to: {creds_path}")
-            logger.info("=" * 60)
+            # Print directly to stderr so it's always visible
+            import sys
+            print("", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("  INITIAL ADMIN CREDENTIALS", file=sys.stderr)
+            print(f"  Username: {settings.admin_user}", file=sys.stderr)
+            print(f"  Password: {password}", file=sys.stderr)
+            print(f"  Saved to: {creds_path}", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("", file=sys.stderr)
         else:
             logger.info(f"Admin user '{settings.admin_user}' already exists")
 

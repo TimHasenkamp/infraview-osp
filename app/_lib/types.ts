@@ -62,6 +62,7 @@ export interface ContainerInfo {
   state: "running" | "exited" | "paused" | "restarting";
   status: string;
   created: number;
+  update_available?: boolean;
 }
 
 export interface Server {

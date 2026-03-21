@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Square, RotateCcw, MoreVertical } from "lucide-react";
+import { Play, Square, RotateCcw, MoreVertical, ArrowUpCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -44,10 +44,24 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
     }
   };
 
+  const updatesAvailable = containers.filter((c) => c.update_available).length;
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Containers</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">
+          Containers
+          {updatesAvailable > 0 ? (
+            <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
+              <ArrowUpCircle className="h-3 w-3 mr-1" />
+              {updatesAvailable} update{updatesAvailable > 1 ? "s" : ""}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+              all up to date
+            </Badge>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -68,7 +82,14 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
                   {container.name}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground font-mono">
-                  {container.image}
+                  <span className="flex items-center gap-1.5">
+                    {container.image}
+                    {container.update_available && (
+                      <span title="Image update available">
+                        <ArrowUpCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      </span>
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge
