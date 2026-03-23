@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshButton } from "./refresh-button";
 import { getMetrics, getMetricsExportUrl } from "../_lib/api-client";
 import { useWSContext } from "../_providers/websocket-provider";
 import { Download } from "lucide-react";
@@ -57,27 +58,22 @@ export function MetricChart({ serverId }: MetricChartProps) {
     });
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
-
-    getMetrics(serverId, range, 5000)
+    return getMetrics(serverId, range, 5000)
       .then((result) => {
-        if (!cancelled) {
-          setData(result.items);
-          setLoading(false);
-        }
+        setData(result.items);
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err.message);
-          setLoading(false);
-        }
-      });
-
-    return () => { cancelled = true; };
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
   }, [serverId, range]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const { servers: wsUpdates } = useWSContext();
   const lastWsTimestamp = useRef(0);
@@ -153,7 +149,10 @@ export function MetricChart({ serverId }: MetricChartProps) {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-base">System Metrics</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            System Metrics
+            <RefreshButton onRefresh={fetchData} />
+          </CardTitle>
           <div className="flex items-center gap-2">
             <a
               href={getMetricsExportUrl(serverId, range, "csv")}

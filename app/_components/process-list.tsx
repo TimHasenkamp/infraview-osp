@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Cpu } from "lucide-react";
 import {
   Table,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWSContext } from "../_providers/websocket-provider";
+import { RefreshButton } from "./refresh-button";
 import { formatBytes } from "../_lib/utils";
 import type { ProcessInfo } from "../_lib/types";
 
@@ -20,6 +22,7 @@ interface ProcessListProps {
 }
 
 export function ProcessList({ processes: initialProcesses, serverId }: ProcessListProps) {
+  const router = useRouter();
   const { servers: wsUpdates } = useWSContext();
   const update = wsUpdates.get(serverId);
   const processes = (update?.processes as ProcessInfo[] | undefined) ?? initialProcesses;
@@ -30,6 +33,7 @@ export function ProcessList({ processes: initialProcesses, serverId }: ProcessLi
         <CardTitle className="text-base flex items-center gap-2">
           <Cpu className="h-4 w-4" />
           Top Processes
+          <RefreshButton onRefresh={() => router.refresh()} />
         </CardTitle>
       </CardHeader>
       <CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, Package } from "lucide-react";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useWSContext } from "../_providers/websocket-provider";
+import { RefreshButton } from "./refresh-button";
 import { timeAgo } from "../_lib/utils";
 import type { UpdatesInfo } from "../_lib/types";
 
@@ -21,6 +23,7 @@ interface UpdatesPanelProps {
 }
 
 export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
+  const router = useRouter();
   const { servers: wsUpdates } = useWSContext();
   const [expanded, setExpanded] = useState(false);
 
@@ -34,6 +37,7 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
           <CardTitle className="text-base flex items-center gap-2">
             <Package className="h-4 w-4" />
             System Updates
+            <RefreshButton onRefresh={() => router.refresh()} />
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -59,6 +63,7 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
             )}
             System Updates
+            <RefreshButton onRefresh={() => router.refresh()} />
           </CardTitle>
           <div className="flex items-center gap-2">
             {hasUpdates ? (

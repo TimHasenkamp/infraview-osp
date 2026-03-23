@@ -80,6 +80,12 @@ async def agent_websocket(websocket: WebSocket):
                 if request_id and request_id in pending_log_requests:
                     pending_log_requests[request_id].set_result(payload)
 
+            elif msg_type == "compose_preview_response":
+                payload = data.get("payload", {})
+                request_id = payload.get("request_id")
+                if request_id and request_id in pending_log_requests:
+                    pending_log_requests[request_id].set_result(payload)
+
             elif msg_type == "pong":
                 pass
 
@@ -126,6 +132,33 @@ async def request_container_logs(agent_id: str, container_id: str, lines: int = 
         return result
     except asyncio.TimeoutError:
         return {"logs": "", "error": "Timeout waiting for agent response"}
+    finally:
+        pending_log_requests.pop(request_id, None)
+
+
+async def request_compose_preview(agent_id: str, container_id: str, target_image: str) -> dict:
+    ws = connected_agents.get(agent_id)
+    if not ws:
+        return {"error": "Agent not connected"}
+
+    request_id = str(uuid.uuid4())
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    pending_log_requests[request_id] = future
+
+    try:
+        await ws.send_json({
+            "type": "compose_preview_request",
+            "payload": {
+                "container_id": container_id,
+                "target_image": target_image,
+                "request_id": request_id,
+            },
+        })
+        result = await asyncio.wait_for(future, timeout=10.0)
+        return result
+    except asyncio.TimeoutError:
+        return {"error": "Timeout waiting for agent response"}
     finally:
         pending_log_requests.pop(request_id, None)
 

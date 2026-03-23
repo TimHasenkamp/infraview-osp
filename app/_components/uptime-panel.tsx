@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RefreshButton } from "./refresh-button";
 import { API_BASE_URL } from "../_lib/constants";
 
 interface UptimeData {
@@ -25,12 +26,14 @@ function getBarColor(pct: number): string {
 export function UptimePanel({ serverId }: UptimePanelProps) {
   const [data, setData] = useState<UptimeData | null>(null);
 
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/servers/${serverId}/uptime?days=30`)
+  const fetchUptime = useCallback(() => {
+    return fetch(`${API_BASE_URL}/servers/${serverId}/uptime?days=30`)
       .then((r) => r.json())
       .then(setData)
       .catch(() => {});
   }, [serverId]);
+
+  useEffect(() => { fetchUptime(); }, [fetchUptime]);
 
   if (!data) return null;
 
@@ -43,6 +46,7 @@ export function UptimePanel({ serverId }: UptimePanelProps) {
           <CardTitle className="text-base flex items-center gap-2">
             <Clock className="h-4 w-4" />
             Uptime
+            <RefreshButton onRefresh={fetchUptime} />
           </CardTitle>
           <span className={`text-lg font-bold font-mono ${
             data.uptime_percent >= 99 ? "text-emerald-400" :

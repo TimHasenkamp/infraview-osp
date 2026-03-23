@@ -55,14 +55,29 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	onCommand := func(containerID, action string) {
-		log.Info().Str("container", containerID).Str("action", action).Msg("Received container command")
-		cmdCtx, cmdCancel := context.WithTimeout(ctx, containerTimeout)
+	onCommand := func(containerID, action, targetImage string) {
+		log.Info().Str("container", containerID).Str("action", action).Str("target", targetImage).Msg("Received container command")
+		timeout := containerTimeout
+		if action == "update" || action == "update_compose" {
+			timeout = 5 * time.Minute
+		}
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, timeout)
 		defer cmdCancel()
-		if err := docker.ContainerAction(cmdCtx, containerID, action); err != nil {
+		var err error
+		if action == "update" && targetImage != "" {
+			err = docker.UpdateContainer(cmdCtx, containerID, targetImage, false)
+		} else if action == "update_compose" && targetImage != "" {
+			err = docker.UpdateContainer(cmdCtx, containerID, targetImage, true)
+		} else {
+			err = docker.ContainerAction(cmdCtx, containerID, action)
+		}
+		if err != nil {
 			log.Error().Err(err).Str("container", containerID).Str("action", action).Msg("Container action failed")
 		} else {
 			log.Info().Str("container", containerID).Str("action", action).Msg("Container action succeeded")
+			if action == "update" || action == "update_compose" {
+				imageChecker.Invalidate()
+			}
 		}
 	}
 
@@ -83,6 +98,24 @@ func main() {
 		}
 	}
 
+	onComposePreview := func(containerID, targetImage, requestID string) {
+		log.Info().Str("container", containerID).Str("target", targetImage).Msg("Compose preview request")
+		preview := docker.GetComposePreview(ctx, containerID, targetImage)
+		if err := wsClient.SendJSON(map[string]any{
+			"type": "compose_preview_response",
+			"payload": map[string]any{
+				"request_id":   requestID,
+				"compose_file": preview.ComposeFile,
+				"service":      preview.Service,
+				"current":      preview.Current,
+				"proposed":     preview.Proposed,
+				"error":        preview.Error,
+			},
+		}); err != nil {
+			log.Error().Err(err).Msg("Send compose preview failed")
+		}
+	}
+
 	// Append API key to WebSocket URL
 	wsURL := cfg.BackendURL
 	if cfg.APIKey != "" {
@@ -93,7 +126,7 @@ func main() {
 		wsURL += sep + "key=" + cfg.APIKey
 	}
 
-	wsClient = transport.NewWSClient(wsURL, onCommand, onLogs)
+	wsClient = transport.NewWSClient(wsURL, onCommand, onLogs, onComposePreview)
 
 	startTime := time.Now()
 	health.StartHealthServer(":8081", cfg.AgentID, startTime, wsClient.IsConnected)

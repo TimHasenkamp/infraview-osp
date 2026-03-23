@@ -20,13 +20,14 @@ const (
 )
 
 type WSClient struct {
-	url       string
-	conn      *websocket.Conn
-	mu        sync.Mutex
-	onCommand func(containerID, action string)
-	onLogs    func(containerID, requestID string, lines int)
-	connected bool
-	stopPing  chan struct{}
+	url            string
+	conn           *websocket.Conn
+	mu             sync.Mutex
+	onCommand      func(containerID, action, targetImage string)
+	onLogs         func(containerID, requestID string, lines int)
+	onComposePreview func(containerID, targetImage, requestID string)
+	connected      bool
+	stopPing       chan struct{}
 }
 
 type wsMessage struct {
@@ -37,6 +38,7 @@ type wsMessage struct {
 type containerCommand struct {
 	ContainerID string `json:"container_id"`
 	Action      string `json:"action"`
+	TargetImage string `json:"target_image,omitempty"`
 }
 
 type containerLogsRequest struct {
@@ -45,12 +47,16 @@ type containerLogsRequest struct {
 	Lines       int    `json:"lines"`
 }
 
-func NewWSClient(url string, onCommand func(containerID, action string), onLogs func(containerID, requestID string, lines int)) *WSClient {
-	return &WSClient{
+func NewWSClient(url string, onCommand func(containerID, action, targetImage string), onLogs func(containerID, requestID string, lines int), onComposePreview ...func(containerID, targetImage, requestID string)) *WSClient {
+	c := &WSClient{
 		url:       url,
 		onCommand: onCommand,
 		onLogs:    onLogs,
 	}
+	if len(onComposePreview) > 0 {
+		c.onComposePreview = onComposePreview[0]
+	}
+	return c
 }
 
 func (w *WSClient) Connect(ctx context.Context) error {
@@ -193,7 +199,7 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 			if w.onCommand != nil {
 				var cmd containerCommand
 				if err := json.Unmarshal(msg.Payload, &cmd); err == nil {
-					w.onCommand(cmd.ContainerID, cmd.Action)
+					w.onCommand(cmd.ContainerID, cmd.Action, cmd.TargetImage)
 				}
 			}
 		case "container_logs_request":
@@ -201,6 +207,17 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 				var req containerLogsRequest
 				if err := json.Unmarshal(msg.Payload, &req); err == nil {
 					w.onLogs(req.ContainerID, req.RequestID, req.Lines)
+				}
+			}
+		case "compose_preview_request":
+			if w.onComposePreview != nil {
+				var req struct {
+					ContainerID string `json:"container_id"`
+					TargetImage string `json:"target_image"`
+					RequestID   string `json:"request_id"`
+				}
+				if err := json.Unmarshal(msg.Payload, &req); err == nil {
+					w.onComposePreview(req.ContainerID, req.TargetImage, req.RequestID)
 				}
 			}
 		}
@@ -225,6 +242,16 @@ func (w *WSClient) SendLogsResponse(requestID string, logs string, errMsg string
 		Type:    "container_logs_response",
 		Payload: payload,
 	})
+}
+
+func (w *WSClient) SendJSON(msg map[string]any) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.conn == nil {
+		return nil
+	}
+	w.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	return w.conn.WriteJSON(msg)
 }
 
 func (w *WSClient) IsConnected() bool {

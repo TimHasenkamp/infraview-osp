@@ -6,13 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Container
 from app.schemas.server import ContainerSchema
-from app.ws.agent_handler import send_command_to_agent, request_container_logs
+from app.ws.agent_handler import send_command_to_agent, request_container_logs, request_compose_preview
 
 router = APIRouter()
 
 
 class ContainerActionBody(BaseModel):
-    action: Literal["start", "stop", "restart"]
+    action: Literal["start", "stop", "restart", "update", "update_compose"]
+    target_image: str | None = None
 
 
 @router.get("/servers/{server_id}/containers", response_model=list[ContainerSchema])
@@ -46,6 +47,7 @@ async def container_action(
             "payload": {
                 "container_id": container_id,
                 "action": body.action,
+                "target_image": body.target_image or "",
             },
         },
     )
@@ -65,3 +67,16 @@ async def get_container_logs(
     if error and "not connected" in error.lower():
         raise HTTPException(status_code=503, detail=error)
     return {"logs": result.get("logs", ""), "error": error or None}
+
+
+@router.get("/servers/{server_id}/containers/{container_id}/compose-preview")
+async def compose_preview(
+    server_id: str,
+    container_id: str,
+    target_image: str = Query(...),
+):
+    result = await request_compose_preview(server_id, container_id, target_image)
+    error = result.get("error", "")
+    if error and "not connected" in error.lower():
+        raise HTTPException(status_code=503, detail=error)
+    return result

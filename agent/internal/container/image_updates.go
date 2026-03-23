@@ -45,6 +45,14 @@ func NewImageUpdateChecker(cli *client.Client, interval time.Duration) *ImageUpd
 	}
 }
 
+// Invalidate clears the cache so the next Check() performs a fresh lookup.
+func (c *ImageUpdateChecker) Invalidate() {
+	c.mu.Lock()
+	c.cache = make(map[string]*ImageUpdateInfo)
+	c.lastCheck = time.Time{}
+	c.mu.Unlock()
+}
+
 // Check returns cached results or performs a fresh check
 func (c *ImageUpdateChecker) Check(ctx context.Context, images []string) map[string]*ImageUpdateInfo {
 	c.mu.RLock()

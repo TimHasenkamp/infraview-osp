@@ -41,11 +41,12 @@ export function getMetricsExportUrl(serverId: string, range = "1h", format: "csv
 export async function containerAction(
   serverId: string,
   containerId: string,
-  action: "start" | "stop" | "restart"
+  action: "start" | "stop" | "restart" | "update" | "update_compose",
+  targetImage?: string
 ): Promise<void> {
   await apiFetch(`servers/${serverId}/containers/${containerId}/action`, {
     method: "POST",
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, target_image: targetImage }),
   });
 }
 

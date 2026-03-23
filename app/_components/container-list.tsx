@@ -18,8 +18,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContainerLogs } from "./container-logs";
+import { ComposePreviewDialog } from "./compose-preview-dialog";
 import { containerAction } from "../_lib/api-client";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { RefreshButton } from "./refresh-button";
 import type { ContainerInfo } from "../_lib/types";
 
 interface ContainerListProps {
@@ -35,9 +38,10 @@ const stateStyles: Record<string, string> = {
 };
 
 export function ContainerList({ containers, serverId }: ContainerListProps) {
-  const handleAction = async (containerId: string, action: string) => {
+  const router = useRouter();
+  const handleAction = async (containerId: string, action: string, targetImage?: string) => {
     try {
-      await containerAction(serverId, containerId, action as "start" | "stop" | "restart");
+      await containerAction(serverId, containerId, action as "start" | "stop" | "restart" | "update", targetImage);
       toast.success(`Container ${action} command sent`);
     } catch {
       toast.error(`Failed to ${action} container`);
@@ -51,6 +55,7 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           Containers
+          <RefreshButton onRefresh={() => router.refresh()} />
           {updatesAvailable > 0 ? (
             <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
               <ArrowUpCircle className="h-3 w-3 mr-1" />
@@ -84,16 +89,30 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
                 <TableCell className="text-sm text-muted-foreground font-mono">
                   <div className="flex items-center gap-1.5">
                     {container.image}
-                    {container.update_available && container.latest_version && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-400 border-amber-500/20 shrink-0">
-                        <ArrowUpCircle className="h-2.5 w-2.5 mr-0.5" />
-                        {container.latest_version}
-                      </Badge>
-                    )}
-                    {container.update_available && !container.latest_version && (
-                      <span title="Image update available">
-                        <ArrowUpCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                      </span>
+                    {container.update_available && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <span className="inline-flex items-center rounded-md border text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-400 border-amber-500/20 shrink-0 cursor-pointer hover:bg-amber-500/20 transition-colors">
+                            <ArrowUpCircle className="h-2.5 w-2.5 mr-0.5" />
+                            {container.latest_version ?? "update"}
+                          </span>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            onClick={() => handleAction(container.id, "update", container.latest_version ?? undefined)}
+                          >
+                            <ArrowUpCircle className="h-4 w-4 mr-2" />
+                            Update Container
+                          </DropdownMenuItem>
+                          <ComposePreviewDialog
+                            serverId={serverId}
+                            containerId={container.id}
+                            containerName={container.name}
+                            latestVersion={container.latest_version ?? ""}
+                            variant="menuitem"
+                          />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
                 </TableCell>
