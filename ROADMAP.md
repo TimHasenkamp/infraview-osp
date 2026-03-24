@@ -58,7 +58,6 @@
 - [x] Configurable retention policies (ENV-based)
 - [x] Pagination on metrics and alert events endpoints
 - [x] Data export (CSV/JSON)
-- [ ] Database migration to PostgreSQL (optional, for multi-instance)
 - [ ] Alembic migrations for schema versioning
 
 ## Phase 7 — Testing ✅
@@ -73,11 +72,8 @@
 - [x] GitHub Actions CI pipeline (lint, test, build)
 - [x] GitHub Actions release pipeline (tag-triggered)
 - [x] Multi-architecture Docker builds (amd64 + arm64)
-- [x] Kubernetes manifests (Deployment, Service, Ingress, ConfigMap, DaemonSet)
-- [x] Kustomize for deployment
 - [x] `.dockerignore` optimization
 - [ ] Image vulnerability scanning (Trivy)
-- [ ] Helm chart for configurable deployments
 - [ ] Automated release versioning (semantic-release)
 
 ## Phase 9 — Observability & Operations ✅
