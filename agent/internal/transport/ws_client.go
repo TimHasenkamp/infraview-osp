@@ -20,14 +20,15 @@ const (
 )
 
 type WSClient struct {
-	url            string
-	conn           *websocket.Conn
-	mu             sync.Mutex
-	onCommand      func(containerID, action, targetImage string)
-	onLogs         func(containerID, requestID string, lines int)
+	url              string
+	conn             *websocket.Conn
+	mu               sync.Mutex
+	onCommand        func(containerID, action, targetImage string)
+	onLogs           func(containerID, requestID string, lines int)
 	onComposePreview func(containerID, targetImage, requestID string)
-	connected      bool
-	stopPing       chan struct{}
+	onRefreshUpdates func()
+	connected        bool
+	stopPing         chan struct{}
 }
 
 type wsMessage struct {
@@ -220,6 +221,10 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 					w.onComposePreview(req.ContainerID, req.TargetImage, req.RequestID)
 				}
 			}
+		case "refresh_updates":
+			if w.onRefreshUpdates != nil {
+				w.onRefreshUpdates()
+			}
 		}
 	}
 }
@@ -252,6 +257,10 @@ func (w *WSClient) SendJSON(msg map[string]any) error {
 	}
 	w.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 	return w.conn.WriteJSON(msg)
+}
+
+func (w *WSClient) SetOnRefreshUpdates(fn func()) {
+	w.onRefreshUpdates = fn
 }
 
 func (w *WSClient) IsConnected() bool {

@@ -44,6 +44,7 @@ export interface UpdatesInfo {
   security: number;
   packages: PackageUpdate[];
   last_check: number;
+  apt_available: boolean;
 }
 
 export interface ProcessInfo {

@@ -80,6 +80,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
+      - /etc/apt:/etc/apt:ro
+      - /var/lib/apt/lists:/var/lib/apt/lists:ro
+      - /var/lib/dpkg/status:/var/lib/dpkg/status:ro
     depends_on:
       - backend
     restart: unless-stopped

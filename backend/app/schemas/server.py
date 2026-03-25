@@ -47,6 +47,7 @@ class UpdatesInfoSchema(BaseModel):
     security: int = 0
     packages: list[PackageUpdateSchema] = []
     last_check: int = 0
+    apt_available: bool = False
 
 
 class ProcessSchema(BaseModel):

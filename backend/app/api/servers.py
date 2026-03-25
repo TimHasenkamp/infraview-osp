@@ -8,6 +8,7 @@ from app.schemas.server import (
     ServerResponse, ContainerSchema,
     CPUMetrics, MemoryMetrics, DiskMetrics, NetworkMetrics, LoadMetrics,
 )
+from app.ws.agent_handler import send_command_to_agent
 
 router = APIRouter()
 
@@ -155,3 +156,11 @@ async def update_tags(
     server.tags = ",".join(cleaned)
     await db.commit()
     return {"status": "ok", "tags": cleaned}
+
+
+@router.post("/servers/{server_id}/refresh-updates")
+async def refresh_updates(server_id: str):
+    sent = await send_command_to_agent(server_id, {"type": "refresh_updates"})
+    if not sent:
+        raise HTTPException(status_code=503, detail="Agent not connected")
+    return {"ok": True}

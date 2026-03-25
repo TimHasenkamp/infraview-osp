@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, Package } from "lucide-react";
 import {
   Table,
@@ -23,25 +22,45 @@ interface UpdatesPanelProps {
 }
 
 export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
-  const router = useRouter();
   const { servers: wsUpdates } = useWSContext();
   const [expanded, setExpanded] = useState(false);
+
+  const handleRefresh = async () => {
+    await fetch(`/api/proxy/servers/${serverId}/refresh-updates`, { method: "POST" });
+  };
 
   const update = wsUpdates.get(serverId);
   const updates: UpdatesInfo | null = update?.updates ?? null;
 
   if (!updates) {
+    // WS not yet connected — show skeleton state
     return (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Package className="h-4 w-4" />
             System Updates
-            <RefreshButton onRefresh={() => router.refresh()} />
+            <RefreshButton onRefresh={handleRefresh} />
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Waiting for update check...</p>
+          <p className="text-sm text-muted-foreground animate-pulse">Connecting...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!updates.apt_available) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            System Updates
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">APT not available on this system.</p>
         </CardContent>
       </Card>
     );
@@ -63,7 +82,7 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
             )}
             System Updates
-            <RefreshButton onRefresh={() => router.refresh()} />
+            <RefreshButton onRefresh={handleRefresh} />
           </CardTitle>
           <div className="flex items-center gap-2">
             {hasUpdates ? (

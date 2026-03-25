@@ -51,16 +51,19 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/host/proc:ro
       - .:/host/compose
+      - /etc/apt:/etc/apt:ro
+      - /var/lib/apt/lists:/var/lib/apt/lists:ro
+      - /var/lib/dpkg/status:/var/lib/dpkg/status:ro
 
   # Test container with outdated image for update detection demo
   demo-nginx:
-    image: nginx:1.24
+    image: nginx:1.26.0
     ports:
       - "8080:80"
     restart: unless-stopped
 
   demo-redis:
-    image: redis:7.4.8
+    image: redis:7.0.0
     restart: unless-stopped
 
 volumes:

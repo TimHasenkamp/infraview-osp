@@ -1,7 +1,9 @@
 package collector
 
 import (
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/shirou/gopsutil/v3/process"
 )
@@ -16,7 +18,16 @@ func collectProcesses(topN int) ([]ProcessInfo, error) {
 	for _, p := range procs {
 		name, err := p.Name()
 		if err != nil || name == "" {
-			continue
+			// Fallback: derive name from cmdline
+			cmdline, cmderr := p.Cmdline()
+			if cmderr != nil || cmdline == "" {
+				continue
+			}
+			parts := strings.Fields(cmdline)
+			name = filepath.Base(parts[0])
+			if name == "" {
+				continue
+			}
 		}
 
 		cpuPct, _ := p.CPUPercent()

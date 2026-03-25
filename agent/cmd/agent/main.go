@@ -127,6 +127,10 @@ func main() {
 	}
 
 	wsClient = transport.NewWSClient(wsURL, onCommand, onLogs, onComposePreview)
+	wsClient.SetOnRefreshUpdates(func() {
+		log.Info().Msg("APT cache cleared — will refresh on next tick")
+		collector.ClearUpdatesCache()
+	})
 
 	startTime := time.Now()
 	health.StartHealthServer(":8081", cfg.AgentID, startTime, wsClient.IsConnected)

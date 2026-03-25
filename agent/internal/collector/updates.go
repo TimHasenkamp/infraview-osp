@@ -15,10 +15,11 @@ type PackageUpdate struct {
 }
 
 type UpdatesInfo struct {
-	Available int             `json:"available"`
-	Security  int             `json:"security"`
-	Packages  []PackageUpdate `json:"packages"`
-	LastCheck int64           `json:"last_check"`
+	Available    int             `json:"available"`
+	Security     int             `json:"security"`
+	Packages     []PackageUpdate `json:"packages"`
+	LastCheck    int64           `json:"last_check"`
+	AptAvailable bool            `json:"apt_available"`
 }
 
 var (
@@ -27,6 +28,13 @@ var (
 	lastCheckTime time.Time
 	checkInterval = 30 * time.Minute
 )
+
+func ClearUpdatesCache() {
+	updatesMu.Lock()
+	cachedUpdates = nil
+	lastCheckTime = time.Time{}
+	updatesMu.Unlock()
+}
 
 func collectUpdates() *UpdatesInfo {
 	updatesMu.Lock()
@@ -45,15 +53,17 @@ func collectUpdates() *UpdatesInfo {
 	// Check if apt is available
 	aptPath, err := exec.LookPath("apt")
 	if err != nil {
-		// Try apt-get as fallback, or system doesn't use apt
 		aptPath, err = exec.LookPath("apt-get")
 		if err != nil {
+			// Not a Debian/Ubuntu system — report as unavailable
+			result.AptAvailable = false
 			cachedUpdates = result
 			lastCheckTime = time.Now()
 			return result
 		}
 	}
 	_ = aptPath
+	result.AptAvailable = true
 
 	// Get upgradable packages
 	cmd := exec.Command("apt", "list", "--upgradable")
