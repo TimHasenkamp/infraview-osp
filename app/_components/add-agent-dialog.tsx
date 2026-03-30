@@ -51,7 +51,7 @@ function CodeBlock({ code, filename }: { code: string; filename: string }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-border">
       <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
@@ -64,7 +64,7 @@ function CodeBlock({ code, filename }: { code: string; filename: string }) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+          className="h-7 shrink-0 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
           onClick={copy}
         >
           {copied ? (
@@ -80,7 +80,7 @@ function CodeBlock({ code, filename }: { code: string; filename: string }) {
           )}
         </Button>
       </div>
-      <pre className="overflow-x-auto bg-muted/20 p-4 text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
+      <pre className="block w-full overflow-x-auto bg-muted/20 p-4 text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
         {code}
       </pre>
     </div>
@@ -134,7 +134,7 @@ export function AddAgentDialog() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-3xl gap-5">
+        <DialogContent className="sm:max-w-3xl gap-5 overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-base">Deploy Agent</DialogTitle>
             <DialogDescription>
