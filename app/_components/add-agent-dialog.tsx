@@ -80,7 +80,7 @@ function CodeBlock({ code, filename }: { code: string; filename: string }) {
           )}
         </Button>
       </div>
-      <pre className="block w-full overflow-x-auto bg-muted/20 p-4 text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
+      <pre className="min-w-0 overflow-x-auto bg-muted/20 p-4 text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
         {code}
       </pre>
     </div>
@@ -142,7 +142,7 @@ export function AddAgentDialog() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue="bash">
+          <Tabs defaultValue="bash" className="min-w-0">
             <TabsList className="w-full">
               <TabsTrigger value="bash" className="flex-1">
                 <Terminal className="h-3.5 w-3.5" />
@@ -161,14 +161,14 @@ export function AddAgentDialog() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="bash" className="mt-4 space-y-3">
+            <TabsContent value="bash" className="mt-4 min-w-0 space-y-3">
               <p className="text-sm text-muted-foreground">
                 One-liner for Debian, Ubuntu, Arch, and Alpine. Installs the binary and creates a <Kbd>systemd</Kbd> service.
               </p>
               <CodeBlock code={bashSnippet} filename="terminal" />
             </TabsContent>
 
-            <TabsContent value="compose" className="mt-4 space-y-3">
+            <TabsContent value="compose" className="mt-4 min-w-0 space-y-3">
               <p className="text-sm text-muted-foreground">
                 Save as <Kbd>docker-compose.yml</Kbd> alongside your <Kbd>.env</Kbd>, then run{" "}
                 <Kbd>docker compose up -d</Kbd>.
@@ -176,7 +176,7 @@ export function AddAgentDialog() {
               <CodeBlock code={composeSnippet} filename="docker-compose.yml" />
             </TabsContent>
 
-            <TabsContent value="env" className="mt-4 space-y-3">
+            <TabsContent value="env" className="mt-4 min-w-0 space-y-3">
               <p className="text-sm text-muted-foreground">
                 Save as <Kbd>.env</Kbd> in the same directory as your compose file.{" "}
                 <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">API key pre-filled</Badge>
