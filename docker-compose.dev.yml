@@ -47,13 +47,15 @@ services:
       - INFRAVIEW_API_KEY=dev-agent-key
       - HOST_PROC=/host/proc
       - COMPOSE_PROJECT_DIR=/host/compose
+      - HOST_APT=/host-apt
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/host/proc:ro
       - .:/host/compose
-      - /etc/apt:/etc/apt:ro
-      - /var/lib/apt/lists:/var/lib/apt/lists:ro
-      - /var/lib/dpkg/status:/var/lib/dpkg/status:ro
+      # Mount host APT dirs (directories only — safe on non-Debian hosts)
+      - /var/lib/dpkg:/host-apt/dpkg:ro
+      - /var/lib/apt/lists:/host-apt/lists:ro
+      - /etc/apt:/host-apt/etc-apt:ro
 
   # Test container with outdated image for update detection demo
   demo-nginx:

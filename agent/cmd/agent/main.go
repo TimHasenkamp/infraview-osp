@@ -19,6 +19,8 @@ import (
 	"github.com/infraview/agent/internal/transport"
 )
 
+var version = "dev" // overridden at build time via -ldflags "-X main.version=..."
+
 const (
 	collectTimeout   = 10 * time.Second
 	containerTimeout = 10 * time.Second
@@ -130,6 +132,12 @@ func main() {
 	wsClient.SetOnRefreshUpdates(func() {
 		log.Info().Msg("APT cache cleared — will refresh on next tick")
 		collector.ClearUpdatesCache()
+	})
+	wsClient.SetOnRefreshImages(func() {
+		log.Info().Msg("Image update cache cleared — will refresh on next tick")
+		if imageChecker != nil {
+			imageChecker.Invalidate()
+		}
 	})
 
 	startTime := time.Now()

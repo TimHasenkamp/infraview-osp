@@ -39,6 +39,12 @@ const stateStyles: Record<string, string> = {
 
 export function ContainerList({ containers, serverId }: ContainerListProps) {
   const router = useRouter();
+
+  const handleRefreshImages = async () => {
+    await fetch(`/api/proxy/servers/${serverId}/refresh-images`, { method: "POST" });
+    router.refresh();
+  };
+
   const handleAction = async (containerId: string, action: string, targetImage?: string) => {
     try {
       await containerAction(serverId, containerId, action as "start" | "stop" | "restart" | "update", targetImage);
@@ -55,7 +61,7 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           Containers
-          <RefreshButton onRefresh={() => router.refresh()} />
+          <RefreshButton onRefresh={handleRefreshImages} />
           {updatesAvailable > 0 ? (
             <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
               <ArrowUpCircle className="h-3 w-3 mr-1" />

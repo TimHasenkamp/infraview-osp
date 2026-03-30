@@ -27,6 +27,7 @@ type WSClient struct {
 	onLogs           func(containerID, requestID string, lines int)
 	onComposePreview func(containerID, targetImage, requestID string)
 	onRefreshUpdates func()
+	onRefreshImages  func()
 	connected        bool
 	stopPing         chan struct{}
 }
@@ -225,6 +226,10 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 			if w.onRefreshUpdates != nil {
 				w.onRefreshUpdates()
 			}
+		case "refresh_images":
+			if w.onRefreshImages != nil {
+				w.onRefreshImages()
+			}
 		}
 	}
 }
@@ -261,6 +266,10 @@ func (w *WSClient) SendJSON(msg map[string]any) error {
 
 func (w *WSClient) SetOnRefreshUpdates(fn func()) {
 	w.onRefreshUpdates = fn
+}
+
+func (w *WSClient) SetOnRefreshImages(fn func()) {
+	w.onRefreshImages = fn
 }
 
 func (w *WSClient) IsConnected() bool {

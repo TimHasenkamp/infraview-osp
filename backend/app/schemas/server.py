@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic import BaseModel
 
 
@@ -48,6 +49,9 @@ class UpdatesInfoSchema(BaseModel):
     packages: list[PackageUpdateSchema] = []
     last_check: int = 0
     apt_available: bool = False
+    package_manager: str = ""
+    agent_mode: Literal["container", "native"] = "native"
+    os_name: str = ""
 
 
 class ProcessSchema(BaseModel):

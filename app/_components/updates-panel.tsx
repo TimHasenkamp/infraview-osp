@@ -32,8 +32,7 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
   const update = wsUpdates.get(serverId);
   const updates: UpdatesInfo | null = update?.updates ?? null;
 
-  if (!updates) {
-    // WS not yet connected — show skeleton state
+  if (!update) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -50,7 +49,10 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
     );
   }
 
-  if (!updates.apt_available) {
+  if (!updates || !updates.apt_available) {
+    const msg = updates?.agent_mode === "container"
+      ? "Container-Agent: nur Debian/Ubuntu-Hosts mit gemounteten APT-Verzeichnissen werden unterstützt. Für alle anderen Systeme bitte den nativen Agent als Binary installieren."
+      : "Kein Paketmanager erkannt.";
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -60,7 +62,10 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">APT not available on this system.</p>
+          {updates?.os_name && (
+            <p className="text-xs text-muted-foreground mb-2">OS: {updates.os_name}</p>
+          )}
+          <p className="text-sm text-muted-foreground">{msg}</p>
         </CardContent>
       </Card>
     );
@@ -111,11 +116,16 @@ export function UpdatesPanel({ serverId }: UpdatesPanelProps) {
         </div>
       </CardHeader>
       <CardContent>
-        {updates.last_check > 0 && (
-          <p className="text-xs text-muted-foreground mb-3" suppressHydrationWarning>
-            Last checked: {timeAgo(updates.last_check)}
-          </p>
-        )}
+        <div className="flex items-center gap-3 mb-3">
+          {updates.os_name && (
+            <p className="text-xs text-muted-foreground">OS: {updates.os_name}</p>
+          )}
+          {updates.last_check > 0 && (
+            <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+              Last checked: {timeAgo(updates.last_check)}
+            </p>
+          )}
+        </div>
         {hasUpdates && (
           <>
             <button

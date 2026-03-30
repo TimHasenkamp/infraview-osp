@@ -15,6 +15,8 @@ services:
     image: traefik:v3.6.11
     command:
       - --api.insecure=false
+      - --log.level=INFO
+      - --accesslog=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
@@ -32,7 +34,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/timhasenkamp/infraview-osp-frontend:latest
+    image: ghcr.io/timhasenkamp/infraview-osp/frontend:latest
     environment:
       - BACKEND_URL=http://backend:8000
       - NEXT_PUBLIC_WS_URL=wss://${DOMAIN:?DOMAIN is required}/ws/dashboard
@@ -47,7 +49,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: ghcr.io/timhasenkamp/infraview-osp-backend:latest
+    image: ghcr.io/timhasenkamp/infraview-osp/backend:latest
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///data/infraview.db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
@@ -62,14 +64,14 @@ services:
       - backend-data:/app/data
     labels:
       - traefik.enable=true
-      - traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/ws`))
+      - traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/ws`)
       - traefik.http.routers.backend.entrypoints=websecure
       - traefik.http.routers.backend.tls.certresolver=letsencrypt
       - traefik.http.services.backend.loadbalancer.server.port=8000
     restart: unless-stopped
 
   agent:
-    image: ghcr.io/timhasenkamp/infraview-osp-agent:latest
+    image: ghcr.io/timhasenkamp/infraview-osp/agent:latest
     pid: host
     environment:
       - INFRAVIEW_BACKEND_URL=ws://backend:8000/ws/agent
@@ -77,12 +79,13 @@ services:
       - INFRAVIEW_INTERVAL=5
       - INFRAVIEW_API_KEY=${AGENT_API_KEY:?AGENT_API_KEY is required}
       - HOST_PROC=/host/proc
+      - HOST_APT=/host-apt
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
-      - /etc/apt:/etc/apt:ro
-      - /var/lib/apt/lists:/var/lib/apt/lists:ro
-      - /var/lib/dpkg/status:/var/lib/dpkg/status:ro
+      - /var/lib/dpkg:/host-apt/dpkg:ro
+      - /var/lib/apt/lists:/host-apt/lists:ro
+      - /etc/apt:/host-apt/etc-apt:ro
     depends_on:
       - backend
     restart: unless-stopped

@@ -17,10 +17,11 @@ services:
       - INFRAVIEW_INTERVAL=${INTERVAL:-5}
       - INFRAVIEW_API_KEY=${AGENT_API_KEY:?AGENT_API_KEY is required}
       - HOST_PROC=/host/proc
+      - HOST_APT=/host-apt
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
-      - /etc/apt:/etc/apt:ro
-      - /var/lib/apt/lists:/var/lib/apt/lists:ro
-      - /var/lib/dpkg/status:/var/lib/dpkg/status:ro
+      - /var/lib/dpkg:/host-apt/dpkg:ro
+      - /var/lib/apt/lists:/host-apt/lists:ro
+      - /etc/apt:/host-apt/etc-apt:ro
     restart: unless-stopped

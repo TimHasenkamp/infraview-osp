@@ -45,6 +45,9 @@ export interface UpdatesInfo {
   packages: PackageUpdate[];
   last_check: number;
   apt_available: boolean;
+  package_manager: string;
+  agent_mode: "container" | "native";
+  os_name: string;
 }
 
 export interface ProcessInfo {
