@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ServerCard } from "./server-card";
+import { AddAgentDialog } from "./add-agent-dialog";
 import { useWSContext } from "../_providers/websocket-provider";
 import type { Server } from "../_lib/types";
 
@@ -44,9 +45,10 @@ export function ServerGrid({ servers }: ServerGridProps) {
   if (mergedServers.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-4">
           <p className="text-lg">No servers connected</p>
           <p className="text-sm">Deploy the InfraView agent to start monitoring</p>
+          <AddAgentDialog />
         </div>
       </div>
     );
@@ -54,27 +56,32 @@ export function ServerGrid({ servers }: ServerGridProps) {
 
   return (
     <div className="space-y-4">
-      {allTags.length > 0 && (
+      <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
-          <Badge
-            variant={activeTag === null ? "default" : "outline"}
-            className="cursor-pointer text-xs"
-            onClick={() => setActiveTag(null)}
-          >
-            All
-          </Badge>
-          {allTags.map((tag) => (
-            <Badge
-              key={tag}
-              variant={activeTag === tag ? "default" : "outline"}
-              className="cursor-pointer text-xs font-mono"
-              onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-            >
-              {tag}
-            </Badge>
-          ))}
+          {allTags.length > 0 && (
+            <>
+              <Badge
+                variant={activeTag === null ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => setActiveTag(null)}
+              >
+                All
+              </Badge>
+              {allTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant={activeTag === tag ? "default" : "outline"}
+                  className="cursor-pointer text-xs font-mono"
+                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </>
+          )}
         </div>
-      )}
+        <AddAgentDialog />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredServers.map((server) => (
           <ServerCard key={server.id} server={server} />
