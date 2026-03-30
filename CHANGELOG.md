@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.2.0 (2026-03-30)
+
+### Features
+
+- **Container update GUI** — one-click image update from the dashboard; choose between "Update Container" (image only) or "Update + Compose" (image + compose file patch)
+- **Compose file preview** — diff dialog shows old vs. new image tag with auto-scroll to the changed line before applying the update
+- **Per-component refresh buttons** — every card on the server detail page (metrics, uptime, containers, processes, updates) has an individual refresh button for on-demand reload without a full page navigation
+- **On-demand APT cache refresh** — agent exposes a WebSocket command to trigger `apt-get update` and return fresh package metadata
+
+### Security
+
+- Hardened auth: timing-safe password comparison, stricter JWT validation
+- Input validation and sanitisation on all API endpoints
+- CORS policy tightened to explicit allow-list
+- Removed sensitive values from API responses and logs
+- Updated vulnerable Go dependencies (otel-sdk, Docker SDK)
+
+### Fixes
+
+- Correct image URLs in all Docker Compose templates (dev, production, SSL)
+
+### Documentation
+
+- Overhauled README with architecture diagram, quick-start guide, and contribution section
+- Added release guide
+
+---
+
 ## v0.1.0 (2026-03-21)
 
 Initial preview release of InfraView — a self-hosted, real-time server monitoring platform.
