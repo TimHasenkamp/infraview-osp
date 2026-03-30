@@ -134,7 +134,7 @@ export function AddAgentDialog() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl gap-5">
+        <DialogContent className="sm:max-w-3xl gap-5">
           <DialogHeader>
             <DialogTitle className="text-base">Deploy Agent</DialogTitle>
             <DialogDescription>
