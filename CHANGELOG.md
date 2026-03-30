@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.1 (2026-03-30)
+
+### Features
+
+- **Agent deploy dialog** — "Add Agent" button on the server overview opens a dialog with three tabs: Bash one-liner, Docker Compose file, and `.env` — all pre-filled with the correct backend URL and API key
+- **Agent-only compose setup** — `deploy/compose/agent-only/` with a ready-to-use `docker-compose.yml` and `.env.example` for deploying the agent standalone on remote servers
+
+### Fixes
+
+- Docker image builds now work on `linux/arm64` and `linux/amd64`; `linux/arm/v7` dropped because `lightningcss` (Tailwind CSS 4) and Turbopack have no native binaries for 32-bit ARM
+- Backend Docker image uses a multi-stage build to fix C-extension wheel compilation on ARM
+- Frontend production builds use `--webpack` flag to avoid Turbopack on platforms without native bindings
+
+---
+
 ## v0.2.0 (2026-03-30)
 
 ### Features
