@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.3 (2026-03-31)
+
+### Fixes
+
+- **WebSocket URL** — Frontend leitet die WebSocket-URL nun aus `window.location` ab statt aus `NEXT_PUBLIC_WS_URL`. Pre-built Images funktionieren damit auf jeder Domain ohne zusätzliche Konfiguration. `NEXT_PUBLIC_WS_URL` kann weiterhin als Override gesetzt werden, ist aber nicht mehr nötig.
+
+---
+
 ## v0.2.2 (2026-03-31)
 
 ### Features
