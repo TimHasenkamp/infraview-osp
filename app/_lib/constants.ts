@@ -1,16 +1,4 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/proxy";
-function getWsUrl(): string {
-  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
-  // Derive from current browser location so the pre-built image works on any
-  // domain without extra configuration. wss:// when served over HTTPS.
-  if (typeof window !== "undefined") {
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${proto}//${window.location.host}/ws/dashboard`;
-  }
-  return "ws://localhost:8000/ws/dashboard";
-}
-
-export const WS_URL = getWsUrl();
 
 export const METRIC_COLORS = {
   cpu: "var(--chart-1)",

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { WSMessage } from "../_lib/types";
-import { WS_URL } from "../_lib/constants";
 
 const MAX_RECONNECT_ATTEMPTS = 20;
 
@@ -23,7 +22,9 @@ export function useWebSocket(wsToken: string | null) {
 
     setStatus(attemptRef.current === 0 ? "connecting" : "reconnecting");
 
-    const wsUrl = `${WS_URL}${WS_URL.includes("?") ? "&" : "?"}token=${tokenRef.current}`;
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const base = process.env.NEXT_PUBLIC_WS_URL ?? `${proto}//${window.location.host}/ws/dashboard`;
+    const wsUrl = `${base}${base.includes("?") ? "&" : "?"}token=${tokenRef.current}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
