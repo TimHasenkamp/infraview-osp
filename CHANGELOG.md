@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.6 (2026-03-31)
+
+### Fixes
+
+- **Refresh-Button System Updates** — Nach Klick auf Refresh im Updates-Panel sendet der Agent sofort einen neuen Snapshot statt bis zum nächsten 5-Sekunden-Tick zu warten. Gleiches gilt für den Image-Refresh bei Containern.
+
+---
+
 ## v0.2.5 (2026-03-31)
 
 ### Features

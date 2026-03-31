@@ -129,15 +129,25 @@ func main() {
 		wsURL += sep + "key=" + cfg.APIKey
 	}
 
+	forceCollect := make(chan struct{}, 1)
+
 	wsClient = transport.NewWSClient(wsURL, onCommand, onLogs, onComposePreview)
 	wsClient.SetOnRefreshUpdates(func() {
-		log.Info().Msg("APT cache cleared — will refresh on next tick")
+		log.Info().Msg("APT cache cleared — triggering immediate snapshot")
 		collector.ClearUpdatesCache()
+		select {
+		case forceCollect <- struct{}{}:
+		default:
+		}
 	})
 	wsClient.SetOnRefreshImages(func() {
-		log.Info().Msg("Image update cache cleared — will refresh on next tick")
+		log.Info().Msg("Image update cache cleared — triggering immediate snapshot")
 		if imageChecker != nil {
 			imageChecker.Invalidate()
+		}
+		select {
+		case forceCollect <- struct{}{}:
+		default:
 		}
 	})
 
@@ -187,47 +197,52 @@ func main() {
 
 	containerErrLogged := false
 
+	collect := func() {
+		_, collectCancel := context.WithTimeout(ctx, collectTimeout)
+		snapshot, err := coll.Collect()
+		collectCancel()
+		if err != nil {
+			log.Error().Err(err).Msg("Collection error")
+			return
+		}
+
+		containerCtx, containerCancel := context.WithTimeout(ctx, containerTimeout)
+		containers, err := docker.ListContainers(containerCtx)
+		containerCancel()
+		if err != nil {
+			if !containerErrLogged {
+				log.Warn().Err(err).Msg("Container list error (suppressing further)")
+				containerErrLogged = true
+			}
+		} else {
+			if imageChecker != nil && len(containers) > 0 {
+				images := make([]string, len(containers))
+				for i, c := range containers {
+					images[i] = c.Image
+				}
+				updates := imageChecker.Check(ctx, images)
+				for i, c := range containers {
+					if info, ok := updates[c.Image]; ok {
+						containers[i].UpdateAvailable = info.UpdateAvail
+						containers[i].LatestVersion = info.LatestTag
+					}
+				}
+			}
+			snapshot.Containers = containers
+			containerErrLogged = false
+		}
+
+		if err := wsClient.SendSnapshot(snapshot); err != nil {
+			log.Error().Err(err).Msg("Send snapshot failed")
+		}
+	}
+
 	for {
 		select {
+		case <-forceCollect:
+			collect()
 		case <-ticker.C:
-			_, collectCancel := context.WithTimeout(ctx, collectTimeout)
-			snapshot, err := coll.Collect()
-			collectCancel()
-			if err != nil {
-				log.Error().Err(err).Msg("Collection error")
-				continue
-			}
-
-			containerCtx, containerCancel := context.WithTimeout(ctx, containerTimeout)
-			containers, err := docker.ListContainers(containerCtx)
-			containerCancel()
-			if err != nil {
-				if !containerErrLogged {
-					log.Warn().Err(err).Msg("Container list error (suppressing further)")
-					containerErrLogged = true
-				}
-			} else {
-				// Check for image updates (cached, only hits registry every 30 min)
-				if imageChecker != nil && len(containers) > 0 {
-					images := make([]string, len(containers))
-					for i, c := range containers {
-						images[i] = c.Image
-					}
-					updates := imageChecker.Check(ctx, images)
-					for i, c := range containers {
-						if info, ok := updates[c.Image]; ok {
-							containers[i].UpdateAvailable = info.UpdateAvail
-							containers[i].LatestVersion = info.LatestTag
-						}
-					}
-				}
-				snapshot.Containers = containers
-				containerErrLogged = false
-			}
-
-			if err := wsClient.SendSnapshot(snapshot); err != nil {
-				log.Error().Err(err).Msg("Send snapshot failed")
-			}
+			collect()
 
 		case sig := <-sigCh:
 			log.Info().Str("signal", sig.String()).Msg("Shutting down gracefully")
