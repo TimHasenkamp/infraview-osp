@@ -17,3 +17,4 @@ class Server(Base):
     disk_total_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tags: Mapped[str | None] = mapped_column(String, nullable=True, default="")
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    public_ip: Mapped[str | None] = mapped_column(String, nullable=True)

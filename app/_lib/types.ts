@@ -74,6 +74,7 @@ export interface Server {
   id: string;
   hostname: string;
   display_name: string | null;
+  public_ip: string | null;
   status: "online" | "offline";
   last_seen: number;
   first_seen: number;
@@ -90,6 +91,7 @@ export interface ServerResponse {
   id: string;
   hostname: string;
   display_name: string | null;
+  public_ip: string | null;
   status: "online" | "offline";
   last_seen: number;
   first_seen: number;
@@ -114,6 +116,8 @@ export interface MetricSnapshot {
   load15: number;
 }
 
+export type NotifyChannel = "none" | "email" | "discord" | "slack" | "gotify" | "webhook";
+
 export interface AlertRule {
   id: number;
   server_id: string | null;
@@ -123,8 +127,18 @@ export interface AlertRule {
   severity: "warning" | "critical";
   notify_email: string | null;
   notify_webhook: string | null;
+  notify_channel: NotifyChannel;
+  gotify_token: string | null;
   enabled: boolean;
   cooldown_seconds: number;
+}
+
+export interface DockerImage {
+  id: string;
+  tags: string[];
+  size_bytes: number;
+  created: number;
+  in_use: boolean;
 }
 
 export interface AlertEvent {

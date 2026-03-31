@@ -79,9 +79,26 @@ async def send_email_alert(to: str, message: str, severity: str) -> bool:
     return await _retry(_send, backoff_base=2, label=f"Email to {to}")
 
 
-async def send_webhook_alert(url: str, payload: dict) -> bool:
-    # Auto-detect Slack/Discord and format accordingly
-    body = _format_webhook_payload(url, payload)
+async def send_gotify_alert(base_url: str, token: str | None, message: str, severity: str) -> bool:
+    if not token:
+        logger.warning("Gotify token not configured, skipping alert")
+        return False
+
+    url = base_url.rstrip("/") + "/message"
+    priority = 8 if severity == "critical" else 5
+    body = {"title": f"InfraView Alert [{severity.upper()}]", "message": message, "priority": priority}
+
+    async def _send():
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url, json=body, headers={"X-Gotify-Key": token})
+            resp.raise_for_status()
+            logger.info(f"Gotify alert sent to {url}")
+
+    return await _retry(_send, backoff_base=1, label=f"Gotify to {url}")
+
+
+async def send_webhook_alert(url: str, channel: str, payload: dict) -> bool:
+    body = _format_webhook_payload(url, channel, payload)
 
     async def _send():
         async with httpx.AsyncClient(timeout=10) as client:
@@ -92,7 +109,7 @@ async def send_webhook_alert(url: str, payload: dict) -> bool:
     return await _retry(_send, backoff_base=1, label=f"Webhook to {url}")
 
 
-def _format_webhook_payload(url: str, payload: dict) -> dict:
+def _format_webhook_payload(url: str, channel: str, payload: dict) -> dict:
     severity = payload.get("severity", "warning")
     message = payload.get("message", "")
     server_id = payload.get("server_id", "")
@@ -102,8 +119,15 @@ def _format_webhook_payload(url: str, payload: dict) -> dict:
 
     color = 0xFF4444 if severity == "critical" else 0xFFAA00
 
-    # Slack webhook
-    if "hooks.slack.com" in url:
+    # Determine effective channel: explicit > URL-based auto-detection (legacy)
+    effective = channel
+    if not effective or effective in ("none", "webhook"):
+        if "hooks.slack.com" in url:
+            effective = "slack"
+        elif "discord.com/api/webhooks" in url:
+            effective = "discord"
+
+    if effective == "slack":
         emoji = ":rotating_light:" if severity == "critical" else ":warning:"
         return {
             "text": f"{emoji} *InfraView Alert* [{severity.upper()}]",
@@ -124,8 +148,7 @@ def _format_webhook_payload(url: str, payload: dict) -> dict:
             ],
         }
 
-    # Discord webhook
-    if "discord.com/api/webhooks" in url:
+    if effective == "discord":
         return {
             "embeds": [
                 {
@@ -142,5 +165,5 @@ def _format_webhook_payload(url: str, payload: dict) -> dict:
             ]
         }
 
-    # Generic webhook (unchanged)
+    # Generic webhook
     return payload

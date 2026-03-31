@@ -12,19 +12,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
-import type { AlertRule } from "../_lib/types";
+import type { AlertRule, NotifyChannel } from "../_lib/types";
 
 interface AlertFormProps {
   onSubmit: (rule: Omit<AlertRule, "id">) => void;
 }
+
+const CHANNEL_LABELS: Record<NotifyChannel, string> = {
+  none: "None",
+  email: "Email",
+  discord: "Discord",
+  slack: "Slack",
+  gotify: "Gotify",
+  webhook: "Webhook (generic)",
+};
 
 export function AlertForm({ onSubmit }: AlertFormProps) {
   const [open, setOpen] = useState(false);
   const [metric, setMetric] = useState("cpu_percent");
   const [threshold, setThreshold] = useState("90");
   const [severity, setSeverity] = useState("warning");
+  const [channel, setChannel] = useState<NotifyChannel>("none");
   const [email, setEmail] = useState("");
-  const [webhook, setWebhook] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [gotifyToken, setGotifyToken] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,21 +45,29 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
       operator: ">",
       threshold: parseFloat(threshold),
       severity: severity as AlertRule["severity"],
-      notify_email: email || null,
-      notify_webhook: webhook || null,
+      notify_email: channel === "email" ? email || null : null,
+      notify_webhook: channel !== "none" && channel !== "email" ? webhookUrl || null : null,
+      notify_channel: channel,
+      gotify_token: channel === "gotify" ? gotifyToken || null : null,
       enabled: true,
       cooldown_seconds: 300,
     });
     setOpen(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
     setMetric("cpu_percent");
     setThreshold("90");
     setSeverity("warning");
+    setChannel("none");
     setEmail("");
-    setWebhook("");
+    setWebhookUrl("");
+    setGotifyToken("");
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
       <DialogTrigger className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
         <Plus className="h-4 w-4" />
         New Rule
@@ -91,24 +110,81 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
               <option value="critical">Critical</option>
             </select>
           </div>
+
           <div className="space-y-2">
-            <Label>Email (optional)</Label>
-            <Input
-              type="email"
-              placeholder="alerts@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <Label>Notification Channel</Label>
+            <select
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as NotifyChannel)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              {(Object.keys(CHANNEL_LABELS) as NotifyChannel[]).map((ch) => (
+                <option key={ch} value={ch}>{CHANNEL_LABELS[ch]}</option>
+              ))}
+            </select>
           </div>
-          <div className="space-y-2">
-            <Label>Webhook URL (optional)</Label>
-            <Input
-              type="url"
-              placeholder="https://hooks.slack.com/..."
-              value={webhook}
-              onChange={(e) => setWebhook(e.target.value)}
-            />
-          </div>
+
+          {channel === "email" && (
+            <div className="space-y-2">
+              <Label>Email address</Label>
+              <Input
+                type="email"
+                placeholder="alerts@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          {(channel === "discord" || channel === "slack" || channel === "webhook") && (
+            <div className="space-y-2">
+              <Label>
+                {channel === "discord" && "Discord Webhook URL"}
+                {channel === "slack" && "Slack Webhook URL"}
+                {channel === "webhook" && "Webhook URL"}
+              </Label>
+              <Input
+                type="url"
+                placeholder={
+                  channel === "discord"
+                    ? "https://discord.com/api/webhooks/..."
+                    : channel === "slack"
+                    ? "https://hooks.slack.com/services/..."
+                    : "https://your-server.com/webhook"
+                }
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          {channel === "gotify" && (
+            <>
+              <div className="space-y-2">
+                <Label>Gotify Server URL</Label>
+                <Input
+                  type="url"
+                  placeholder="https://gotify.example.com"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>App Token</Label>
+                <Input
+                  type="password"
+                  placeholder="App token from Gotify"
+                  value={gotifyToken}
+                  onChange={(e) => setGotifyToken(e.target.value)}
+                  required
+                />
+              </div>
+            </>
+          )}
+
           <Button type="submit" className="w-full">
             Create Rule
           </Button>

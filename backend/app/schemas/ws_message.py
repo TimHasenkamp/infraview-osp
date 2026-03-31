@@ -6,6 +6,7 @@ class SystemSnapshot(BaseModel):
     timestamp: int
     hostname: str
     agent_id: str
+    public_ip: str | None = None
     cpu: CPUMetrics
     memory: MemoryMetrics
     disk: DiskMetrics

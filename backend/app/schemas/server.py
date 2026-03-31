@@ -78,6 +78,7 @@ class ServerResponse(BaseModel):
     id: str
     hostname: str
     display_name: str | None = None
+    public_ip: str | None = None
     status: str
     last_seen: float
     first_seen: float

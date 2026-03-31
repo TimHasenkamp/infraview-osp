@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Network, Gauge, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Globe, Gauge, Pencil, Check, X, Copy } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./status-badge";
@@ -121,20 +121,24 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
           detail={`${formatBytes(server.disk.used_bytes)} / ${formatBytes(server.disk.total_bytes)}`}
         />
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
-              <Network className="h-4 w-4" />
-              Network
+          <CardContent className="pt-3 pb-3">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1.5">
+              <Globe className="h-4 w-4" />
+              Public IP
             </div>
-            <p className="text-lg font-bold tabular-nums">{formatBytes(server.network.bytes_recv)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              ↑ {formatBytes(server.network.bytes_sent)} / ↓ {formatBytes(server.network.bytes_recv)}
-            </p>
+            {server.public_ip ? (
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-bold tabular-nums font-mono">{server.public_ip}</p>
+                <CopyIconButton value={server.public_ip} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">—</p>
+            )}
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
+          <CardContent className="pt-3 pb-3">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1.5">
               <Gauge className="h-4 w-4" />
               Load
             </div>
@@ -145,8 +149,8 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
+          <CardContent className="pt-3 pb-3">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1.5">
               <Clock className="h-4 w-4" />
               Uptime
             </div>
@@ -159,6 +163,50 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function CopyIconButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [value]);
+  return (
+    <button
+      onClick={copy}
+      className="text-muted-foreground hover:text-foreground transition-colors"
+      title="In Zwischenablage kopieren"
+    >
+      {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+    </button>
+  );
+}
+
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = useCallback(() => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [value]);
+
+  return (
+    <div className="flex items-center gap-1 mt-2 group/copy">
+      <span className="text-xs text-muted-foreground">{label}:</span>
+      <span className="text-xs font-mono">{value}</span>
+      <button
+        onClick={copy}
+        className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-muted-foreground hover:text-foreground ml-0.5"
+        title={`Copy ${label}`}
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+      </button>
     </div>
   );
 }
@@ -176,8 +224,8 @@ function MetricCard({
 }) {
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
+      <CardContent className="pt-3 pb-3">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1.5">
           {icon}
           {label}
         </div>

@@ -94,6 +94,9 @@ _MIGRATIONS = [
     ("containers", "latest_version", "VARCHAR"),
     ("servers", "tags", "VARCHAR DEFAULT ''"),
     ("servers", "display_name", "VARCHAR"),
+    ("servers", "public_ip", "VARCHAR"),
+    ("alert_rules", "notify_channel", "VARCHAR DEFAULT 'none'"),
+    ("alert_rules", "gotify_token", "VARCHAR"),
 ]
 
 

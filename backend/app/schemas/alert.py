@@ -10,6 +10,8 @@ class AlertRuleCreate(BaseModel):
     severity: Literal["warning", "critical"] = "warning"
     notify_email: str | None = None
     notify_webhook: str | None = None
+    notify_channel: Literal["none", "email", "discord", "slack", "gotify", "webhook"] = "none"
+    gotify_token: str | None = None
     enabled: bool = True
     cooldown_seconds: int = Field(default=300, ge=0)
 
@@ -22,6 +24,8 @@ class AlertRuleUpdate(BaseModel):
     severity: Literal["warning", "critical"] | None = None
     notify_email: str | None = None
     notify_webhook: str | None = None
+    notify_channel: Literal["none", "email", "discord", "slack", "gotify", "webhook"] | None = None
+    gotify_token: str | None = None
     enabled: bool | None = None
     cooldown_seconds: int | None = Field(default=None, ge=0)
 
@@ -35,6 +39,8 @@ class AlertRuleResponse(BaseModel):
     severity: str
     notify_email: str | None
     notify_webhook: str | None
+    notify_channel: str | None = "none"
+    gotify_token: str | None = None
     enabled: bool
     cooldown_seconds: int
 

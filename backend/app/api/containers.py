@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Container
 from app.schemas.server import ContainerSchema
-from app.ws.agent_handler import send_command_to_agent, request_container_logs, request_compose_preview
+from app.ws.agent_handler import send_command_to_agent, request_container_logs, request_compose_preview, request_image_list, request_image_remove
 
 router = APIRouter()
 
@@ -80,3 +80,27 @@ async def compose_preview(
     if error and "not connected" in error.lower():
         raise HTTPException(status_code=503, detail=error)
     return result
+
+
+class RemoveImagesBody(BaseModel):
+    image_ids: list[str]
+
+
+@router.get("/servers/{server_id}/images")
+async def list_images(server_id: str):
+    result = await request_image_list(server_id)
+    error = result.get("error", "")
+    if error and "not connected" in error.lower():
+        raise HTTPException(status_code=503, detail=error)
+    return {"images": result.get("images", []), "error": error or None}
+
+
+@router.delete("/servers/{server_id}/images")
+async def remove_images(server_id: str, body: RemoveImagesBody):
+    if not body.image_ids:
+        raise HTTPException(status_code=400, detail="No image IDs provided")
+    result = await request_image_remove(server_id, body.image_ids)
+    error = result.get("error", "")
+    if error and "not connected" in error.lower():
+        raise HTTPException(status_code=503, detail=error)
+    return {"results": result.get("results", []), "error": error or None}

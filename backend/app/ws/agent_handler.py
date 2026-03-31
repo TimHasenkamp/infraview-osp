@@ -22,8 +22,11 @@ connected_agents: dict[str, WebSocket] = {}
 # Track last snapshot time per agent
 agent_last_seen: dict[str, float] = {}
 
-# Pending log requests: request_id -> (asyncio.Future, created_at)
+# Pending log requests: request_id -> asyncio.Future
 pending_log_requests: dict[str, asyncio.Future] = {}
+
+# Pending image requests: request_id -> asyncio.Future
+pending_image_requests: dict[str, asyncio.Future] = {}
 
 AGENT_TIMEOUT_SECONDS = 60
 
@@ -85,6 +88,18 @@ async def agent_websocket(websocket: WebSocket):
                 request_id = payload.get("request_id")
                 if request_id and request_id in pending_log_requests:
                     pending_log_requests[request_id].set_result(payload)
+
+            elif msg_type == "image_list_response":
+                payload = data.get("payload", {})
+                request_id = payload.get("request_id")
+                if request_id and request_id in pending_image_requests:
+                    pending_image_requests[request_id].set_result(payload)
+
+            elif msg_type == "image_remove_response":
+                payload = data.get("payload", {})
+                request_id = payload.get("request_id")
+                if request_id and request_id in pending_image_requests:
+                    pending_image_requests[request_id].set_result(payload)
 
             elif msg_type == "self_update_response":
                 payload = data.get("payload", {})
@@ -173,6 +188,52 @@ async def request_compose_preview(agent_id: str, container_id: str, target_image
         pending_log_requests.pop(request_id, None)
 
 
+async def request_image_list(agent_id: str) -> dict:
+    ws = connected_agents.get(agent_id)
+    if not ws:
+        return {"images": [], "error": "Agent not connected"}
+
+    request_id = str(uuid.uuid4())
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    pending_image_requests[request_id] = future
+
+    try:
+        await ws.send_json({
+            "type": "list_images_request",
+            "payload": {"request_id": request_id},
+        })
+        result = await asyncio.wait_for(future, timeout=30.0)
+        return result
+    except asyncio.TimeoutError:
+        return {"images": [], "error": "Timeout waiting for agent response"}
+    finally:
+        pending_image_requests.pop(request_id, None)
+
+
+async def request_image_remove(agent_id: str, image_ids: list[str]) -> dict:
+    ws = connected_agents.get(agent_id)
+    if not ws:
+        return {"results": [], "error": "Agent not connected"}
+
+    request_id = str(uuid.uuid4())
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    pending_image_requests[request_id] = future
+
+    try:
+        await ws.send_json({
+            "type": "remove_images_request",
+            "payload": {"request_id": request_id, "image_ids": image_ids},
+        })
+        result = await asyncio.wait_for(future, timeout=120.0)
+        return result
+    except asyncio.TimeoutError:
+        return {"results": [], "error": "Timeout waiting for agent response"}
+    finally:
+        pending_image_requests.pop(request_id, None)
+
+
 async def send_command_to_agent(agent_id: str, command: dict) -> bool:
     ws = connected_agents.get(agent_id)
     if ws:
@@ -200,6 +261,7 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                     cpu_cores=snapshot.cpu.core_count,
                     memory_total_bytes=snapshot.memory.total_bytes,
                     disk_total_bytes=snapshot.disk.total_bytes,
+                    public_ip=snapshot.public_ip or None,
                 )
                 session.add(server)
             else:
@@ -209,6 +271,8 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                 server.cpu_cores = snapshot.cpu.core_count
                 server.memory_total_bytes = snapshot.memory.total_bytes
                 server.disk_total_bytes = snapshot.disk.total_bytes
+                if snapshot.public_ip:
+                    server.public_ip = snapshot.public_ip
 
             metric = Metric(
                 server_id=snapshot.agent_id,

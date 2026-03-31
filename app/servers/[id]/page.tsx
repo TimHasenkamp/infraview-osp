@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ServerDetail } from "../../_components/server-detail";
 import { MetricChart } from "../../_components/metric-chart";
 import { ContainerList } from "../../_components/container-list";
+import { ImageManager } from "../../_components/image-manager";
 import { ProcessList } from "../../_components/process-list";
 import { UpdatesPanel } from "../../_components/updates-panel";
 import { UptimePanel } from "../../_components/uptime-panel";
@@ -27,6 +28,7 @@ export default async function ServerPage(props: PageProps<"/servers/[id]">) {
         <UpdatesPanel serverId={server.id} />
         <ProcessList processes={[]} serverId={server.id} />
         <ContainerList containers={server.containers} serverId={server.id} />
+        <ImageManager serverId={server.id} />
       </main>
     </div>
   );

@@ -29,6 +29,8 @@ type WSClient struct {
 	onRefreshUpdates func()
 	onRefreshImages  func()
 	onSelfUpdate     func()
+	onListImages     func(requestID string)
+	onRemoveImages   func(imageIDs []string, requestID string)
 	connected        bool
 	stopPing         chan struct{}
 }
@@ -235,6 +237,25 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 			if w.onSelfUpdate != nil {
 				go w.onSelfUpdate()
 			}
+		case "list_images_request":
+			if w.onListImages != nil {
+				var req struct {
+					RequestID string `json:"request_id"`
+				}
+				if err := json.Unmarshal(msg.Payload, &req); err == nil {
+					go w.onListImages(req.RequestID)
+				}
+			}
+		case "remove_images_request":
+			if w.onRemoveImages != nil {
+				var req struct {
+					RequestID string   `json:"request_id"`
+					ImageIDs  []string `json:"image_ids"`
+				}
+				if err := json.Unmarshal(msg.Payload, &req); err == nil {
+					go w.onRemoveImages(req.ImageIDs, req.RequestID)
+				}
+			}
 		}
 	}
 }
@@ -279,6 +300,14 @@ func (w *WSClient) SetOnRefreshImages(fn func()) {
 
 func (w *WSClient) SetOnSelfUpdate(fn func()) {
 	w.onSelfUpdate = fn
+}
+
+func (w *WSClient) SetOnListImages(fn func(requestID string)) {
+	w.onListImages = fn
+}
+
+func (w *WSClient) SetOnRemoveImages(fn func(imageIDs []string, requestID string)) {
+	w.onRemoveImages = fn
 }
 
 func (w *WSClient) IsConnected() bool {

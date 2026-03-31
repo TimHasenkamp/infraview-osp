@@ -75,13 +75,8 @@ export function AlertList({ rules, onToggle, onDelete }: AlertListProps) {
                   <TableCell className="text-sm text-muted-foreground">
                     {rule.server_id || "All"}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {[
-                      rule.notify_email ? "Email" : null,
-                      rule.notify_webhook ? "Webhook" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "-"}
+                  <TableCell className="text-xs text-muted-foreground capitalize">
+                    {!rule.notify_channel || rule.notify_channel === "none" ? "-" : rule.notify_channel}
                   </TableCell>
                   <TableCell>
                     <Switch

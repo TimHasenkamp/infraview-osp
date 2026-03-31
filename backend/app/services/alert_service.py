@@ -6,7 +6,7 @@ from app.database import async_session
 from app.models import AlertRule, AlertEvent
 from app.schemas.ws_message import SystemSnapshot
 from app.ws.client_handler import broadcast_to_dashboards
-from app.services.notification_service import send_email_alert, send_webhook_alert
+from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert
 from app.metrics import ALERTS_FIRED
 
 logger = logging.getLogger(__name__)
@@ -97,22 +97,34 @@ async def check_alerts(snapshot: SystemSnapshot):
             },
         })
 
-        # Send notifications, log failures
-        if rule.notify_email:
-            success = await send_email_alert(rule.notify_email, message, rule.severity)
-            if not success:
+        # Send notifications based on configured channel
+        channel = rule.notify_channel or "none"
+        notif_payload = {
+            "server_id": snapshot.agent_id,
+            "metric": rule.metric,
+            "value": value,
+            "threshold": rule.threshold,
+            "severity": rule.severity,
+            "message": message,
+        }
+        if channel == "email" and rule.notify_email:
+            ok = await send_email_alert(rule.notify_email, message, rule.severity)
+            if not ok:
                 logger.error(f"Email notification failed for alert rule {rule.id}")
-        if rule.notify_webhook:
-            success = await send_webhook_alert(rule.notify_webhook, {
-                "server_id": snapshot.agent_id,
-                "metric": rule.metric,
-                "value": value,
-                "threshold": rule.threshold,
-                "severity": rule.severity,
-                "message": message,
-            })
-            if not success:
+        elif channel == "gotify" and rule.notify_webhook:
+            ok = await send_gotify_alert(rule.notify_webhook, rule.gotify_token, message, rule.severity)
+            if not ok:
+                logger.error(f"Gotify notification failed for alert rule {rule.id}")
+        elif channel in ("discord", "slack", "webhook") and rule.notify_webhook:
+            ok = await send_webhook_alert(rule.notify_webhook, channel, notif_payload)
+            if not ok:
                 logger.error(f"Webhook notification failed for alert rule {rule.id}")
+        elif channel == "none":
+            # Legacy fallback: honour old rules that have notify_email/notify_webhook set
+            if rule.notify_email:
+                await send_email_alert(rule.notify_email, message, rule.severity)
+            if rule.notify_webhook:
+                await send_webhook_alert(rule.notify_webhook, "webhook", notif_payload)
 
         ALERTS_FIRED.labels(severity=rule.severity).inc()
         logger.warning(f"Alert fired: {message}")

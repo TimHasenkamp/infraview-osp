@@ -250,6 +250,84 @@ func (s *StubDockerClient) GetContainerLogs(_ context.Context, _ string, _ int) 
 	return "", nil
 }
 
+func (s *StubDockerClient) ListImages(_ context.Context) ([]ImageInfo, error) {
+	return []ImageInfo{}, nil
+}
+
+func (s *StubDockerClient) RemoveImages(_ context.Context, _ []string) []ImageRemoveResult {
+	return []ImageRemoveResult{}
+}
+
+// ImageInfo describes a local Docker image.
+type ImageInfo struct {
+	ID        string   `json:"id"`
+	Tags      []string `json:"tags"`
+	SizeBytes int64    `json:"size_bytes"`
+	Created   int64    `json:"created"`
+	InUse     bool     `json:"in_use"`
+}
+
+// ImageRemoveResult reports the outcome for a single image deletion attempt.
+type ImageRemoveResult struct {
+	ID    string `json:"id"`
+	Error string `json:"error,omitempty"`
+}
+
+// ListImages returns all local images with an InUse flag.
+func (d *DockerClient) ListImages(ctx context.Context) ([]ImageInfo, error) {
+	imgs, err := d.cli.ImageList(ctx, image.ListOptions{All: false})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build set of images referenced by any container (all states).
+	containers, _ := d.cli.ContainerList(ctx, containerTypes.ListOptions{All: true})
+	inUse := make(map[string]bool)
+	for _, c := range containers {
+		inUse[c.ImageID] = true
+		inUse[c.Image] = true
+	}
+
+	result := make([]ImageInfo, 0, len(imgs))
+	for _, img := range imgs {
+		used := inUse[img.ID]
+		if !used {
+			for _, tag := range img.RepoTags {
+				if inUse[tag] {
+					used = true
+					break
+				}
+			}
+		}
+		tags := img.RepoTags
+		if len(tags) == 0 {
+			tags = []string{"<none>:<none>"}
+		}
+		result = append(result, ImageInfo{
+			ID:        img.ID,
+			Tags:      tags,
+			SizeBytes: img.Size,
+			Created:   img.Created,
+			InUse:     used,
+		})
+	}
+	return result, nil
+}
+
+// RemoveImages removes a list of images by ID and returns per-image results.
+func (d *DockerClient) RemoveImages(ctx context.Context, imageIDs []string) []ImageRemoveResult {
+	results := make([]ImageRemoveResult, 0, len(imageIDs))
+	for _, id := range imageIDs {
+		_, err := d.cli.ImageRemove(ctx, id, image.RemoveOptions{Force: false, PruneChildren: true})
+		r := ImageRemoveResult{ID: id}
+		if err != nil {
+			r.Error = err.Error()
+		}
+		results = append(results, r)
+	}
+	return results
+}
+
 // ContainerManager interface
 type ContainerManager interface {
 	ListContainers(ctx context.Context) ([]collector.ContainerInfo, error)
@@ -257,6 +335,8 @@ type ContainerManager interface {
 	UpdateContainer(ctx context.Context, containerID string, targetImage string, updateCompose bool) error
 	GetComposePreview(ctx context.Context, containerID string, targetImage string) ComposePreview
 	GetContainerLogs(ctx context.Context, containerID string, lines int) (string, error)
+	ListImages(ctx context.Context) ([]ImageInfo, error)
+	RemoveImages(ctx context.Context, imageIDs []string) []ImageRemoveResult
 }
 
 var _ ContainerManager = (*DockerClient)(nil)

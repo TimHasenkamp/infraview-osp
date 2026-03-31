@@ -151,6 +151,38 @@ func main() {
 		}
 	})
 
+	wsClient.SetOnListImages(func(requestID string) {
+		listCtx, listCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer listCancel()
+		images, err := docker.ListImages(listCtx)
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+			log.Error().Err(err).Msg("List images failed")
+		}
+		_ = wsClient.SendJSON(map[string]any{
+			"type": "image_list_response",
+			"payload": map[string]any{
+				"request_id": requestID,
+				"images":     images,
+				"error":      errMsg,
+			},
+		})
+	})
+
+	wsClient.SetOnRemoveImages(func(imageIDs []string, requestID string) {
+		removeCtx, removeCancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer removeCancel()
+		results := docker.RemoveImages(removeCtx, imageIDs)
+		_ = wsClient.SendJSON(map[string]any{
+			"type": "image_remove_response",
+			"payload": map[string]any{
+				"request_id": requestID,
+				"results":    results,
+			},
+		})
+	})
+
 	wsClient.SetOnSelfUpdate(func() {
 		sendStatus := func(status, message string) {
 			log.Info().Str("status", status).Str("message", message).Msg("Self-update")

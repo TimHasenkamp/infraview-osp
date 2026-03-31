@@ -60,6 +60,7 @@ type SystemSnapshot struct {
 	Timestamp  int64           `json:"timestamp"`
 	Hostname   string          `json:"hostname"`
 	AgentID    string          `json:"agent_id"`
+	PublicIP   string          `json:"public_ip,omitempty"`
 	CPU        CPUMetrics      `json:"cpu"`
 	Memory     MemoryMetrics   `json:"memory"`
 	Disk       DiskMetrics     `json:"disk"`
@@ -74,6 +75,7 @@ type Collector struct {
 	agentID  string
 	hostname string
 	diskPath string
+	publicIP string
 }
 
 func New(agentID, hostname, diskPath string) *Collector {
@@ -81,6 +83,7 @@ func New(agentID, hostname, diskPath string) *Collector {
 		agentID:  agentID,
 		hostname: hostname,
 		diskPath: diskPath,
+		publicIP: fetchPublicIP(),
 	}
 }
 
@@ -122,6 +125,7 @@ func (c *Collector) Collect() (*SystemSnapshot, error) {
 		Timestamp:  time.Now().Unix(),
 		Hostname:   c.hostname,
 		AgentID:    c.agentID,
+		PublicIP:   c.publicIP,
 		CPU:        *cpu,
 		Memory:     *mem,
 		Disk:       *disk,

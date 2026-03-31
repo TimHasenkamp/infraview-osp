@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Cpu, MemoryStick, HardDrive, Container } from "lucide-react";
+import { Cpu, MemoryStick, HardDrive, Container, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "./status-badge";
@@ -27,11 +27,17 @@ export function ServerCard({ server }: ServerCardProps) {
             </CardTitle>
             <StatusBadge status={server.status} />
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Container className="h-3 w-3" />
-            <span>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Container className="h-3 w-3" />
               {runningContainers}/{server.containers.length} containers
             </span>
+            {server.public_ip && (
+              <span className="flex items-center gap-1 font-mono">
+                <Globe className="h-3 w-3" />
+                {server.public_ip}
+              </span>
+            )}
           </div>
           {server.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 pt-0.5">
