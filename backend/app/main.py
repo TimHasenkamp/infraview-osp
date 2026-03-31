@@ -93,6 +93,7 @@ _MIGRATIONS = [
     ("containers", "update_available", "BOOLEAN DEFAULT 0"),
     ("containers", "latest_version", "VARCHAR"),
     ("servers", "tags", "VARCHAR DEFAULT ''"),
+    ("servers", "display_name", "VARCHAR"),
 ]
 
 

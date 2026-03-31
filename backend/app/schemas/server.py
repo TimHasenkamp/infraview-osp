@@ -77,6 +77,7 @@ class ContainerSchema(BaseModel):
 class ServerResponse(BaseModel):
     id: str
     hostname: str
+    display_name: str | None = None
     status: str
     last_seen: float
     first_seen: float

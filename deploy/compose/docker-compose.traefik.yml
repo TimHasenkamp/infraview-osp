@@ -75,7 +75,7 @@ services:
     pid: host
     environment:
       - INFRAVIEW_BACKEND_URL=ws://backend:8000/ws/agent
-      - INFRAVIEW_AGENT_ID=${HOSTNAME:-local}
+      - INFRAVIEW_AGENT_ID=${INFRAVIEW_AGENT_ID:?INFRAVIEW_AGENT_ID is required}
       - INFRAVIEW_INTERVAL=5
       - INFRAVIEW_API_KEY=${AGENT_API_KEY:?AGENT_API_KEY is required}
       - HOST_PROC=/host/proc

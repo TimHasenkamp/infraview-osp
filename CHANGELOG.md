@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.5 (2026-03-31)
+
+### Features
+
+- **Agent rename** — Servers können im Dashboard umbenannt werden: auf der Server-Detailseite Hover über den Hostnamen → Stift-Icon → Inline-Edit. Der `display_name` wird überall angezeigt, der echte Hostname bleibt in Klammern sichtbar. Leer lassen setzt den Namen zurück auf den Hostnamen.
+
+### Fixes
+
+- **`INFRAVIEW_AGENT_ID`** — In allen Compose-Templates war `${HOSTNAME:-local}` gesetzt, was in Docker die Container-ID statt dem Servernamen liefert. Variable ist jetzt als Pflichtfeld in `.env` zu setzen; `.env.example` enthält einen entsprechenden Eintrag.
+
+---
+
 ## v0.2.3 (2026-03-31)
 
 ### Fixes

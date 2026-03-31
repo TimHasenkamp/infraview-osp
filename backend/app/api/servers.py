@@ -54,6 +54,7 @@ def _build_server_response(server, containers, latest_metric=None):
     return ServerResponse(
         id=server.id,
         hostname=server.hostname,
+        display_name=server.display_name,
         status=server.status,
         last_seen=server.last_seen.timestamp(),
         first_seen=server.first_seen.timestamp(),
@@ -134,6 +135,23 @@ _TAG_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$")
 
 class UpdateTagsRequest(BaseModel):
     tags: list[str] = Field(max_length=20)
+
+
+class RenameServerRequest(BaseModel):
+    display_name: str = Field(max_length=100)
+
+
+@router.put("/servers/{server_id}/display-name")
+async def rename_server(
+    server_id: str, body: RenameServerRequest, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Server).where(Server.id == server_id))
+    server = result.scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+    server.display_name = body.display_name.strip() or None
+    await db.commit()
+    return {"status": "ok", "display_name": server.display_name}
 
 
 @router.put("/servers/{server_id}/tags")

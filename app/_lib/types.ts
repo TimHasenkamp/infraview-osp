@@ -73,6 +73,7 @@ export interface ContainerInfo {
 export interface Server {
   id: string;
   hostname: string;
+  display_name: string | null;
   status: "online" | "offline";
   last_seen: number;
   first_seen: number;
@@ -88,6 +89,7 @@ export interface Server {
 export interface ServerResponse {
   id: string;
   hostname: string;
+  display_name: string | null;
   status: "online" | "offline";
   last_seen: number;
   first_seen: number;

@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Network, Gauge } from "lucide-react";
+import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Network, Gauge, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./status-badge";
@@ -18,6 +19,28 @@ interface ServerDetailProps {
 export function ServerDetail({ server: initialServer }: ServerDetailProps) {
   const { servers: wsUpdates } = useWSContext();
   const update = wsUpdates.get(initialServer.id);
+  const [editing, setEditing] = useState(false);
+  const [nameValue, setNameValue] = useState(initialServer.display_name ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  const saveName = async () => {
+    const trimmed = nameValue.trim();
+    await fetch(`/api/proxy/servers/${initialServer.id}/display-name`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: trimmed }),
+    });
+    setEditing(false);
+  };
+
+  const cancelEdit = () => {
+    setNameValue(initialServer.display_name ?? "");
+    setEditing(false);
+  };
 
   const server = update
     ? {
@@ -41,9 +64,35 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
             </Button>
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {server.hostname}
-            </h1>
+            {editing ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") cancelEdit(); }}
+                  placeholder={server.hostname}
+                  className="text-2xl font-bold tracking-tight bg-transparent border-b border-primary outline-none w-64"
+                />
+                <button onClick={saveName} className="text-emerald-400 hover:text-emerald-300"><Check className="h-4 w-4" /></button>
+                <button onClick={cancelEdit} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 group/name">
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {server.display_name ?? server.hostname}
+                </h1>
+                {server.display_name && (
+                  <span className="text-sm text-muted-foreground font-normal">({server.hostname})</span>
+                )}
+                <button
+                  onClick={() => setEditing(true)}
+                  className="opacity-0 group-hover/name:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             <StatusBadge status={server.status} />
           </div>
         </div>
