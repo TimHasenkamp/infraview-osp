@@ -172,3 +172,11 @@ async def refresh_images(server_id: str):
     if not sent:
         raise HTTPException(status_code=503, detail="Agent not connected")
     return {"ok": True}
+
+
+@router.post("/servers/{server_id}/update-agent")
+async def update_agent(server_id: str):
+    sent = await send_command_to_agent(server_id, {"type": "self_update"})
+    if not sent:
+        raise HTTPException(status_code=503, detail="Agent not connected")
+    return {"ok": True}

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.2 (2026-03-31)
+
+### Features
+
+- **Agent self-update** — "Update Agent" button on the server detail page sends a WebSocket command to the agent; the agent updates itself and reconnects automatically
+  - Docker mode: pulls latest image from GHCR, recreates the container under the original name (preserving Docker Compose labels), stops the old container
+  - Native/systemd mode: downloads the new binary for the current architecture, replaces `/usr/local/bin/infraview-agent`, and restarts the service via `systemctl`
+  - Status messages (`pulling`, `downloading`, `restarting`, `up_to_date`, `error`) are relayed back to the dashboard as toasts in real time
+  - Button is only shown when the agent is online; locally-built (dev) containers are detected and blocked with a clear error
+
+---
+
 ## v0.2.1 (2026-03-30)
 
 ### Features

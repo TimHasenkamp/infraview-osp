@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./status-badge";
 import { MetricGauge } from "./metric-gauge";
+import { AgentUpdateButton } from "./agent-update-button";
 import { useWSContext } from "../_providers/websocket-provider";
 import type { Server } from "../_lib/types";
 import { formatBytes, timeAgo } from "../_lib/utils";
@@ -32,18 +33,23 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
     : initialServer;
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {server.hostname}
-          </h1>
-          <StatusBadge status={server.status} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {server.hostname}
+            </h1>
+            <StatusBadge status={server.status} />
+          </div>
         </div>
+        {server.status === "online" && (
+          <AgentUpdateButton serverId={server.id} />
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">

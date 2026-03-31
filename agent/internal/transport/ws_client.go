@@ -28,6 +28,7 @@ type WSClient struct {
 	onComposePreview func(containerID, targetImage, requestID string)
 	onRefreshUpdates func()
 	onRefreshImages  func()
+	onSelfUpdate     func()
 	connected        bool
 	stopPing         chan struct{}
 }
@@ -230,6 +231,10 @@ func (w *WSClient) ListenForCommands(ctx context.Context) {
 			if w.onRefreshImages != nil {
 				w.onRefreshImages()
 			}
+		case "self_update":
+			if w.onSelfUpdate != nil {
+				go w.onSelfUpdate()
+			}
 		}
 	}
 }
@@ -270,6 +275,10 @@ func (w *WSClient) SetOnRefreshUpdates(fn func()) {
 
 func (w *WSClient) SetOnRefreshImages(fn func()) {
 	w.onRefreshImages = fn
+}
+
+func (w *WSClient) SetOnSelfUpdate(fn func()) {
+	w.onSelfUpdate = fn
 }
 
 func (w *WSClient) IsConnected() bool {

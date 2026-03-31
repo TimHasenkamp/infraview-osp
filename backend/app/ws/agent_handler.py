@@ -86,6 +86,16 @@ async def agent_websocket(websocket: WebSocket):
                 if request_id and request_id in pending_log_requests:
                     pending_log_requests[request_id].set_result(payload)
 
+            elif msg_type == "self_update_response":
+                payload = data.get("payload", {})
+                await broadcast_to_dashboards({
+                    "type": "agent_update_status",
+                    "payload": {
+                        "server_id": agent_id,
+                        **payload,
+                    },
+                })
+
             elif msg_type == "pong":
                 pass
 

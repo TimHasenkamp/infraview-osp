@@ -91,6 +91,18 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       }
+      case "agent_update_status": {
+        const p = lastMessage.payload as { server_id: string; status: string; message: string };
+        const desc = `Agent: ${p.server_id}`;
+        if (p.status === "error") {
+          toast.error(p.message, { description: desc });
+        } else if (p.status === "up_to_date") {
+          toast.success(p.message, { description: desc });
+        } else {
+          toast.info(p.message, { description: desc });
+        }
+        break;
+      }
     }
   }, [lastMessage]);
 

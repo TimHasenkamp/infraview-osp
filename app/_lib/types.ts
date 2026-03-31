@@ -156,7 +156,8 @@ export type WSMessageType =
   | "metric_update"
   | "server_status"
   | "alert_event"
-  | "container_action";
+  | "container_action"
+  | "agent_update_status";
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType;

@@ -17,6 +17,7 @@ import (
 	"github.com/infraview/agent/internal/container"
 	"github.com/infraview/agent/internal/health"
 	"github.com/infraview/agent/internal/transport"
+	"github.com/infraview/agent/internal/updater"
 )
 
 var version = "dev" // overridden at build time via -ldflags "-X main.version=..."
@@ -137,6 +138,28 @@ func main() {
 		log.Info().Msg("Image update cache cleared — will refresh on next tick")
 		if imageChecker != nil {
 			imageChecker.Invalidate()
+		}
+	})
+
+	wsClient.SetOnSelfUpdate(func() {
+		sendStatus := func(status, message string) {
+			log.Info().Str("status", status).Str("message", message).Msg("Self-update")
+			_ = wsClient.SendJSON(map[string]any{
+				"type": "self_update_response",
+				"payload": map[string]any{
+					"status":  status,
+					"message": message,
+				},
+			})
+		}
+		if updater.IsInContainer() {
+			if dockerClient != nil {
+				updater.RunDocker(ctx, dockerClient.RawClient(), sendStatus)
+			} else {
+				sendStatus("error", "Docker client not available")
+			}
+		} else {
+			updater.RunNative(ctx, sendStatus)
 		}
 	})
 
