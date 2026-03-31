@@ -70,12 +70,42 @@ The agent currently collects top-level numbers. These additions give real diagno
 
 ---
 
-### 🎨 UX Polish
+### 🎨 UX & Quality of Life
 
+**Navigation & Overview**
 - [ ] **Server detail tabs** — split the long scroll into Overview / Containers / Logs / Alerts tabs
-- [ ] **Metric annotations** — mark a deployment or incident on the chart (vertical line + note)
 - [ ] **Global search** — find servers, containers, alert rules quickly from anywhere
+- [ ] **Sort servers** — sort overview by name, CPU, RAM, status, last seen
+- [ ] **Offline servers at the bottom** — online servers always first in the grid
+- [ ] **Summary bar** — total servers / online / alerts active at a glance on the dashboard
+- [ ] **Favorites / pinned servers** — pin important servers to always appear first
+
+**Server Detail**
+- [ ] **SSH quick-copy** — one-click copy of `ssh user@<public-ip>` command in the server header
+- [ ] **Server notes** — freetext field per server for context (e.g. "production DB, do not restart")
+- [ ] **Sticky metric cards** — keep the CPU/RAM/Disk/IP bar visible while scrolling the detail page
+- [ ] **Metric annotations** — mark a deployment or incident on the chart (vertical line + label)
 - [ ] **Mobile: server detail** — the detail page currently isn't great on small screens
+
+**Alerts & Notifications**
+- [ ] **Test notification button** — send a test message to verify a webhook/email is configured correctly, before saving the rule
+- [ ] **Browser notifications** — Web Notifications API as an optional channel (no external service needed)
+- [ ] **Alert sound** — optional ping when a new critical alert fires
+
+**Containers**
+- [ ] **Quick actions from overview** — restart/stop a container directly from the server card tooltip without navigating to the detail page
+- [ ] **Container uptime** — show how long a container has been running
+- [ ] **Filter containers** — search/filter by name or image on the container list
+
+**Settings & Config**
+- [ ] **Alert rule templates** — one-click presets like "High CPU (>85%)", "Disk almost full (>90%)", "RAM critical (>95%)" so users don't start from scratch
+- [ ] **Configurable dashboard refresh interval** — let users choose 5s / 10s / 30s / manual
+- [ ] **Theme: system default** — follow OS dark/light preference automatically (currently requires manual toggle)
+
+**Developer / Power User**
+- [ ] **Keyboard shortcuts** — `R` refresh current page, `G S` go to servers, `?` show shortcut overlay
+- [ ] **Webhook payload preview** — show the exact JSON that will be sent when testing an alert notification
+- [ ] **Metrics API documentation** — auto-generated OpenAPI docs already exist; link them from the settings page
 
 ---
 
@@ -84,8 +114,11 @@ The agent currently collects top-level numbers. These additions give real diagno
 1. Container crash alerts — closes the biggest monitoring gap
 2. Disk I/O + per-container stats — most useful metric additions for daily use
 3. Telegram — low effort, high community demand
-4. One-command install — lowers barrier to entry significantly
-5. Server detail tabs — the page is getting long
-6. Log streaming — replaces the need for SSH for common tasks
-7. Maintenance windows — prevents alert fatigue
-8. Metric annotations + global search — UX quality of life
+4. Test notification button — saves a lot of frustration when setting up alerts
+5. One-command install — lowers the barrier for new users significantly
+6. Offline servers at the bottom + sort — obvious QoL for anyone with more than 3 servers
+7. Server detail tabs — the page is getting long
+8. SSH quick-copy + server notes — small but used constantly
+9. Alert rule templates — reduces friction for new alert rules
+10. Log streaming — reduces need for SSH for common tasks
+11. Maintenance windows — prevents alert fatigue during planned work
