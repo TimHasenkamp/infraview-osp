@@ -1,96 +1,171 @@
 # InfraView Roadmap
 
-## Phase 1 — Core Integration (Frontend ↔ Backend) ✅
+## Completed — v0.1 through v0.2.7
 
-- [x] Replace mock data with real API calls (`getServers()`, `getServer()`, `getMetrics()`)
-- [x] Wire up container actions (start/stop/restart) to actual API endpoints
-- [x] Connect alert management (create/update/delete) to backend persistence
-- [x] Add toast notifications for WebSocket alert events (sonner)
-- [x] Handle loading & error states for all API calls
-- [x] Container log viewer (full-stack: Agent → Backend → Frontend)
+<details>
+<summary>Phase 1–10 (click to expand)</summary>
 
-## Phase 2 — Reliability & Stability ✅
+### Core & Integration
+- [x] Real API calls (servers, metrics, containers, alerts)
+- [x] Container actions (start/stop/restart/update) full-stack
+- [x] Container log viewer
+- [x] Alert management with persistence
+- [x] Toast notifications for WebSocket events
 
-- [x] WebSocket heartbeat/ping-pong (agent ↔ backend ↔ dashboard)
-- [x] Agent timeout detection — mark servers offline after missed heartbeats
-- [x] Retry logic for failed notifications (email/webhook)
-- [x] Notification deduplication via cooldown + asyncio.Lock
-- [x] Graceful shutdown handling across all services
-- [x] Input validation on all backend endpoints
-- [x] WS connection status indicator in dashboard header
+### Reliability
+- [x] WebSocket heartbeat / ping-pong
+- [x] Agent timeout detection (offline after missed heartbeat)
+- [x] Retry logic with exponential backoff for notifications
+- [x] Graceful shutdown across all services
+- [x] Input validation on all endpoints
 
-## Phase 3 — Agent Improvements ✅
+### Agent
+- [x] CPU, memory, disk, network, load, process metrics
+- [x] Docker container monitoring + image update detection
+- [x] Agent self-update (Docker + systemd/native)
+- [x] Public IP detection (api.ipify.org, cached on startup)
+- [x] Health check endpoint (:8081/health)
+- [x] Per-component refresh buttons (immediate snapshot after cache clear)
+- [x] Agent rename / display name in dashboard
 
-- [x] Network metrics (bytes sent/recv, packets sent/recv)
-- [x] System load averages (1m, 5m, 15m)
-- [x] Health check endpoint on agent (HTTP :8081/health)
-- [x] Full-stack integration (Agent → Backend → DB → API → Frontend)
-- [x] Process-level monitoring (top 10 by CPU/memory, live via WebSocket)
-- [x] Structured logging with zerolog (console writer, caller info, structured fields)
-- [ ] Agent self-update mechanism
+### Security & Auth
+- [x] JWT authentication (httpOnly cookie)
+- [x] API key for agents
+- [x] CORS restriction, rate limiting
+- [x] Timing-safe password comparison, strict JWT validation
 
-## Phase 4 — Authentication & Security ✅
+### Alerting
+- [x] Threshold-based rules (CPU, RAM, Disk)
+- [x] Auto-resolve when metrics recover
+- [x] Alert events history with ack/resolve workflow
+- [x] Email, Slack, Discord, Gotify, generic webhook notifications
+- [x] Cooldown / deduplication
 
-- [x] API key authentication for agents (ENV-based, validated on WS connect)
-- [x] User authentication for dashboard (JWT in httpOnly cookie + localStorage)
-- [x] Login page with username/password
-- [x] CORS restriction to known origins (configurable via ENV)
-- [x] Rate limiting on API endpoints (100 req/min, 10/min on login)
-- [x] WebSocket authentication token validation (agent key + dashboard JWT)
-- [x] Logout button in header
-- [ ] Role-based access control (admin / viewer)
-- [ ] HTTPS/TLS enforcement
+### Data & Performance
+- [x] Metric downsampling (5s → 1min → 5min → 1h)
+- [x] Configurable retention policies
+- [x] CSV/JSON data export
+- [x] Paginated API responses
 
-## Phase 5 — Alerting & Notifications ✅
+### CI/CD & Deployment
+- [x] GitHub Actions CI (lint, test, build)
+- [x] Tag-triggered release pipeline
+- [x] Multi-arch Docker builds — amd64 + arm64 (native runners for frontend, no QEMU)
+- [x] Docker Compose templates (dev, Traefik, Nginx SSL, Caddy, agent-only)
+- [x] Kubernetes manifests (Kustomize)
 
-- [x] Alert acknowledgement & resolution workflow (Ack/Resolve buttons)
-- [x] Auto-resolve alerts when metrics recover
-- [x] Alert events history page with status tracking
-- [x] Slack / Discord webhook integration (auto-detected, formatted embeds)
-- [ ] Composite alert rules (e.g. CPU > 80% AND Memory > 90%)
-- [ ] Maintenance windows / alert suppression
-- [ ] Escalation policies (notify → escalate after N minutes)
-- [ ] Notification templates (customizable message format)
+### Observability
+- [x] Prometheus /metrics endpoint
+- [x] Request tracing with trace IDs
+- [x] Structured JSON logging
+- [x] Backup & restore API
 
-## Phase 6 — Data & Performance ✅
+### UX
+- [x] Dark/light theme
+- [x] Server tagging + tag-based filter
+- [x] Uptime history (30-day bar chart)
+- [x] Mobile-responsive layout
+- [x] Docker image manager (list unused images, single + bulk delete)
+- [x] Public IP card with copy button on server detail
 
-- [x] Metric downsampling (5s → 1min → 5min → 1h for older data)
-- [x] Configurable retention policies (ENV-based)
-- [x] Pagination on metrics and alert events endpoints
-- [x] Data export (CSV/JSON)
-- [ ] Alembic migrations for schema versioning
+</details>
 
-## Phase 7 — Testing ✅
+---
 
-- [x] Backend unit tests (pytest) — API routes, auth, services, downsampling (39 tests)
-- [x] Frontend component tests (Vitest + Testing Library) (26 tests)
-- [x] Agent unit tests (Go testing) — config, health, collectors (14 tests)
-- [ ] End-to-end tests (Playwright)
+## v0.3 — Multi-User, Deeper Monitoring & Production-Grade Quality
 
-## Phase 8 — CI/CD & Deployment ✅
+The theme for v0.3 is **team readiness** and **depth**. The tool currently works great for a single operator. v0.3 should make it production-ready for small teams and provide richer system insight.
 
-- [x] GitHub Actions CI pipeline (lint, test, build)
-- [x] GitHub Actions release pipeline (tag-triggered)
-- [x] Multi-architecture Docker builds (amd64 + arm64)
-- [x] `.dockerignore` optimization
-- [ ] Image vulnerability scanning (Trivy)
-- [ ] Automated release versioning (semantic-release)
+---
 
-## Phase 9 — Observability & Operations ✅
+### 🔐 Multi-User & Access Control
 
-- [x] Structured JSON logging (backend)
-- [x] Prometheus `/metrics` endpoint on backend
-- [x] Request tracing (trace IDs through HTTP middleware)
-- [x] Backend health check with dependency status (DB, connected agents)
-- [x] Backup & restore API (create, download, list, restore with safety backup)
-- [x] Runbook documentation for common incidents
+The biggest missing feature for anyone running InfraView in a team.
 
-## Phase 10 — UX & Features ✅
+- [ ] **User management** — invite users, list/deactivate accounts (admin-only UI)
+- [ ] **Role-based access control** — `admin` (full access) vs `viewer` (read-only, no actions)
+- [ ] **Per-user API tokens** — for scripting / external integrations
+- [ ] **Audit log** — track who triggered container actions, updates, deletes
 
-- [x] Dark/light theme toggle (next-themes, Sun/Moon toggle in header)
-- [x] Server grouping / tagging (comma-separated tags, filter bar on dashboard)
-- [x] Mobile-responsive improvements (header, layout, scrollable tables)
-- [x] Uptime history / SLA tracking (30-day bar chart, daily breakdown API)
-- [ ] Dashboard customization (drag & drop widget layout)
-- [ ] Multi-user notification preferences
-- [ ] Metric annotations (mark deployments, incidents on charts)
+---
+
+### 📊 Deeper System Metrics
+
+The current agent collects aggregate counters. More granular data would make it genuinely useful for diagnosing problems.
+
+- [ ] **Disk I/O** — read/write bytes per second per disk (gopsutil already supports this)
+- [ ] **Network interface breakdown** — per-interface traffic (not just total), with interface names and IP addresses
+- [ ] **Container resource stats** — per-container CPU %, memory usage/limit (Docker stats API)
+- [ ] **Temperature sensors** — CPU/GPU temp where available (nice-to-have, best-effort)
+- [ ] **Chart series for new metrics** — Disk I/O and network rate on the metric chart
+
+---
+
+### 🔔 Smarter Alerting
+
+The alert system is functional but simple. These additions would cover the majority of real-world use cases.
+
+- [ ] **Container-based alerts** — trigger when a container stops, crashes, or restarts repeatedly
+- [ ] **Telegram notifications** — very popular in the self-hosted community, straightforward bot API
+- [ ] **Maintenance windows** — suppress alerts for a scheduled time range (e.g. during deployments)
+- [ ] **Composite rules** — AND/OR conditions (e.g. CPU > 80% AND load > 4.0)
+- [ ] **Escalation** — re-notify after N minutes if an alert is not acknowledged
+- [ ] **Alert rule templates** — pre-filled sensible defaults (e.g. "Critical CPU", "Disk almost full")
+
+---
+
+### 🗂️ Database & Migrations
+
+The current ad-hoc `ALTER TABLE ADD COLUMN` migrations are fragile and will break on more complex schema changes.
+
+- [ ] **Alembic migrations** — replace the `_MIGRATIONS` list with proper versioned migration scripts
+- [ ] **PostgreSQL support** — the backend uses SQLAlchemy + aiosqlite; adding asyncpg would make it viable for larger deployments
+- [ ] **Schema versioning** — agent/backend compatibility check on connect (warn if version mismatch)
+
+---
+
+### 🧪 Testing & Quality
+
+Current test coverage is good for a v0.1/v0.2 project but should be expanded before calling it v0.3.
+
+- [ ] **End-to-end tests** (Playwright) — cover login → server detail → container action → alert flow
+- [ ] **Integration tests for notifications** — verify Gotify/Discord/Slack payloads against their schemas
+- [ ] **Image vulnerability scanning** — Trivy in CI, fail on HIGH/CRITICAL
+- [ ] **Agent compatibility test** — run backend with old agent binary, verify graceful degradation
+
+---
+
+### ⚙️ Operations & Deployment
+
+- [ ] **Automatic HTTPS** — built-in ACME/Let's Encrypt option without needing Traefik (similar to Caddy's approach)
+- [ ] **One-command install script** — `curl | bash` that detects OS, installs backend+frontend via Docker, generates `.env`
+- [ ] **Health dashboard** — admin page showing backend health, DB size, connected agents, notification delivery stats
+- [ ] **Log streaming** — tail system journal / arbitrary log files from the dashboard (not just container logs)
+
+---
+
+### 🎨 UX Polish
+
+Small but impactful improvements that come up in real use.
+
+- [ ] **Metric annotations** — mark deployments or incidents on charts (vertical line + label)
+- [ ] **Global search** — search across servers, containers, alert rules
+- [ ] **Notification preferences per user** — each user chooses their own channel (once multi-user exists)
+- [ ] **Server detail tabs** — split the long detail page into Overview / Containers / Logs / Alerts tabs
+- [ ] **Keyboard shortcuts** — `R` to refresh, `?` for help overlay
+- [ ] **Agent connection latency** — show round-trip time in the server header
+
+---
+
+### Priority order for v0.3
+
+If bandwidth is limited, this is the suggested order:
+
+1. **Alembic migrations** — foundational, unblocks everything else
+2. **Multi-user + RBAC** — most requested feature for team setups
+3. **Container alerts** — covers a major monitoring gap
+4. **Disk I/O + per-container stats** — the most useful metric additions
+5. **Telegram notifications** — high community demand, low effort
+6. **Maintenance windows** — prevents alert fatigue
+7. **E2E tests + Trivy** — quality gate before calling it v0.3
+8. **One-command install** — lowers barrier for new users significantly
