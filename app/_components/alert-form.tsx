@@ -8,6 +8,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,14 +25,14 @@ interface AlertFormProps {
   onSubmit: (rule: Omit<AlertRule, "id">) => void;
 }
 
-const CHANNEL_LABELS: Record<NotifyChannel, string> = {
-  none: "None",
-  email: "Email",
-  discord: "Discord",
-  slack: "Slack",
-  gotify: "Gotify",
-  webhook: "Webhook (generic)",
-};
+const CHANNELS: { value: NotifyChannel; label: string; icon: string }[] = [
+  { value: "none",    label: "None",             icon: "—"  },
+  { value: "email",   label: "Email",             icon: "✉"  },
+  { value: "discord", label: "Discord",           icon: "🎮" },
+  { value: "slack",   label: "Slack",             icon: "💬" },
+  { value: "gotify",  label: "Gotify",            icon: "🔔" },
+  { value: "webhook", label: "Webhook (generic)", icon: "🔗" },
+];
 
 export function AlertForm({ onSubmit }: AlertFormProps) {
   const [open, setOpen] = useState(false);
@@ -77,18 +84,23 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
           <DialogTitle>Create Alert Rule</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Metric */}
           <div className="space-y-2">
             <Label>Metric</Label>
-            <select
-              value={metric}
-              onChange={(e) => setMetric(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            >
-              <option value="cpu_percent">CPU %</option>
-              <option value="memory_percent">Memory %</option>
-              <option value="disk_percent">Disk %</option>
-            </select>
+            <Select value={metric} onValueChange={setMetric}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cpu_percent">CPU %</SelectItem>
+                <SelectItem value="memory_percent">Memory %</SelectItem>
+                <SelectItem value="disk_percent">Disk %</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Threshold */}
           <div className="space-y-2">
             <Label>Threshold (%)</Label>
             <Input
@@ -99,31 +111,42 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
               onChange={(e) => setThreshold(e.target.value)}
             />
           </div>
+
+          {/* Severity */}
           <div className="space-y-2">
             <Label>Severity</Label>
-            <select
-              value={severity}
-              onChange={(e) => setSeverity(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            >
-              <option value="warning">Warning</option>
-              <option value="critical">Critical</option>
-            </select>
+            <Select value={severity} onValueChange={setSeverity}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="warning">⚠ Warning</SelectItem>
+                <SelectItem value="critical">🔴 Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* Notification channel */}
           <div className="space-y-2">
             <Label>Notification Channel</Label>
-            <select
-              value={channel}
-              onChange={(e) => setChannel(e.target.value as NotifyChannel)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            >
-              {(Object.keys(CHANNEL_LABELS) as NotifyChannel[]).map((ch) => (
-                <option key={ch} value={ch}>{CHANNEL_LABELS[ch]}</option>
-              ))}
-            </select>
+            <Select value={channel} onValueChange={(v) => setChannel(v as NotifyChannel)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHANNELS.map((ch) => (
+                  <SelectItem key={ch.value} value={ch.value}>
+                    <span className="flex items-center gap-2">
+                      <span>{ch.icon}</span>
+                      <span>{ch.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* Channel-specific fields */}
           {channel === "email" && (
             <div className="space-y-2">
               <Label>Email address</Label>
@@ -140,9 +163,7 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
           {(channel === "discord" || channel === "slack" || channel === "webhook") && (
             <div className="space-y-2">
               <Label>
-                {channel === "discord" && "Discord Webhook URL"}
-                {channel === "slack" && "Slack Webhook URL"}
-                {channel === "webhook" && "Webhook URL"}
+                {channel === "discord" ? "Discord Webhook URL" : channel === "slack" ? "Slack Webhook URL" : "Webhook URL"}
               </Label>
               <Input
                 type="url"
