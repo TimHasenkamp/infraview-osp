@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Plus, Pencil, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import type { AlertRule, NotifyChannel } from "../_lib/types";
-
-interface AlertFormProps {
-  onSubmit: (rule: Omit<AlertRule, "id">) => void;
-}
 
 const CHANNELS: { value: NotifyChannel; label: string; icon: string }[] = [
   { value: "none",    label: "None",             icon: "—"  },
@@ -34,8 +30,22 @@ const CHANNELS: { value: NotifyChannel; label: string; icon: string }[] = [
   { value: "webhook", label: "Webhook (generic)", icon: "🔗" },
 ];
 
-export function AlertForm({ onSubmit }: AlertFormProps) {
-  const [open, setOpen] = useState(false);
+interface AlertFormProps {
+  onSubmit: (rule: Omit<AlertRule, "id">) => void;
+  /** If provided, opens in edit mode pre-filled with this rule */
+  rule?: AlertRule;
+  /** Controlled open state for edit mode (list controls the trigger) */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }: AlertFormProps) {
+  const isEdit = !!rule;
+
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
+
   const [metric, setMetric] = useState("cpu_percent");
   const [threshold, setThreshold] = useState("90");
   const [severity, setSeverity] = useState("warning");
@@ -46,10 +56,25 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
   const [testState, setTestState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [testError, setTestError] = useState("");
 
+  // Sync fields when rule changes (edit mode) or dialog opens
+  useEffect(() => {
+    if (open && rule) {
+      setMetric(rule.metric);
+      setThreshold(String(rule.threshold));
+      setSeverity(rule.severity);
+      setChannel(rule.notify_channel ?? "none");
+      setEmail(rule.notify_email ?? "");
+      setWebhookUrl(rule.notify_webhook ?? "");
+      setGotifyToken(rule.gotify_token ?? "");
+      setTestState("idle");
+      setTestError("");
+    }
+  }, [open, rule]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      server_id: null,
+      server_id: rule?.server_id ?? null,
       metric: metric as AlertRule["metric"],
       operator: ">",
       threshold: parseFloat(threshold),
@@ -58,11 +83,11 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
       notify_webhook: channel !== "none" && channel !== "email" ? webhookUrl || null : null,
       notify_channel: channel,
       gotify_token: channel === "gotify" ? gotifyToken || null : null,
-      enabled: true,
-      cooldown_seconds: 300,
+      enabled: rule?.enabled ?? true,
+      cooldown_seconds: rule?.cooldown_seconds ?? 300,
     });
     setOpen(false);
-    resetForm();
+    if (!isEdit) resetForm();
   };
 
   const resetForm = () => {
@@ -110,19 +135,22 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
     (["discord", "slack", "webhook"].includes(channel) && !!webhookUrl)
   );
 
+  const trigger = isEdit ? null : (
+    <DialogTrigger className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+      <Plus className="h-4 w-4" />
+      New Rule
+    </DialogTrigger>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-      <DialogTrigger className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-        <Plus className="h-4 w-4" />
-        New Rule
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !isEdit) resetForm(); }}>
+      {trigger}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Alert Rule</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Alert Rule" : "Create Alert Rule"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* Metric */}
           <div className="space-y-2">
             <Label>Metric</Label>
             <Select value={metric} onValueChange={setMetric}>
@@ -137,7 +165,6 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
             </Select>
           </div>
 
-          {/* Threshold */}
           <div className="space-y-2">
             <Label>Threshold (%)</Label>
             <Input
@@ -149,7 +176,6 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
             />
           </div>
 
-          {/* Severity */}
           <div className="space-y-2">
             <Label>Severity</Label>
             <Select value={severity} onValueChange={setSeverity}>
@@ -163,7 +189,6 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
             </Select>
           </div>
 
-          {/* Notification channel */}
           <div className="space-y-2">
             <Label>Notification Channel</Label>
             <Select value={channel} onValueChange={(v) => setChannel(v as NotifyChannel)}>
@@ -183,7 +208,6 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
             </Select>
           </div>
 
-          {/* Channel-specific fields */}
           {channel === "email" && (
             <div className="space-y-2">
               <Label>Email address</Label>
@@ -243,7 +267,6 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
             </>
           )}
 
-          {/* Test notification */}
           {channel !== "none" && (
             <div className="space-y-1.5">
               <Button
@@ -269,7 +292,7 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
           )}
 
           <Button type="submit" className="w-full">
-            Create Rule
+            {isEdit ? "Save Changes" : "Create Rule"}
           </Button>
         </form>
       </DialogContent>

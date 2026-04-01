@@ -53,6 +53,16 @@ export default function AlertsPage() {
     }
   };
 
+  const handleEdit = async (id: number, rule: Omit<AlertRule, "id">) => {
+    try {
+      const updated = await updateAlert(id, rule);
+      setRules((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      toast.success("Alert rule updated");
+    } catch {
+      toast.error("Failed to update alert rule");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <main className="flex-1 p-6 space-y-6">
@@ -81,7 +91,7 @@ export default function AlertsPage() {
             ))}
           </div>
         ) : (
-          <AlertList rules={rules} onToggle={handleToggle} onDelete={handleDelete} />
+          <AlertList rules={rules} onToggle={handleToggle} onDelete={handleDelete} onEdit={handleEdit} />
         )}
       </main>
     </div>
