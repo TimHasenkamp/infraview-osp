@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -11,6 +12,7 @@ from app.schemas.alert import (
     AlertEventResponse,
     PaginatedAlertEventResponse,
 )
+from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert
 
 router = APIRouter()
 
@@ -108,6 +110,40 @@ async def list_alert_events(
         limit=limit,
         offset=offset,
     )
+
+
+class TestNotificationBody(BaseModel):
+    channel: str
+    notify_email: str | None = None
+    notify_webhook: str | None = None
+    gotify_token: str | None = None
+
+
+@router.post("/alerts/test-notification")
+async def test_notification(body: TestNotificationBody):
+    message = "This is a test notification from InfraView."
+    severity = "warning"
+    ok = False
+
+    if body.channel == "email" and body.notify_email:
+        ok = await send_email_alert(body.notify_email, message, severity)
+    elif body.channel == "gotify" and body.notify_webhook:
+        ok = await send_gotify_alert(body.notify_webhook, body.gotify_token, message, severity)
+    elif body.channel in ("discord", "slack", "webhook") and body.notify_webhook:
+        ok = await send_webhook_alert(body.notify_webhook, body.channel, {
+            "server_id": "test",
+            "metric": "cpu_percent",
+            "value": 42.0,
+            "threshold": 80.0,
+            "severity": severity,
+            "message": message,
+        })
+    else:
+        raise HTTPException(status_code=400, detail="No valid channel or target configured")
+
+    if not ok:
+        raise HTTPException(status_code=502, detail="Notification delivery failed")
+    return {"status": "sent"}
 
 
 @router.post("/alerts/events/{event_id}/acknowledge")

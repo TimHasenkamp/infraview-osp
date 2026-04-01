@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import type { AlertRule, NotifyChannel } from "../_lib/types";
 
 interface AlertFormProps {
@@ -43,6 +43,8 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
   const [email, setEmail] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [gotifyToken, setGotifyToken] = useState("");
+  const [testState, setTestState] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [testError, setTestError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +73,42 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
     setEmail("");
     setWebhookUrl("");
     setGotifyToken("");
+    setTestState("idle");
+    setTestError("");
   };
+
+  const sendTest = async () => {
+    setTestState("loading");
+    setTestError("");
+    try {
+      const res = await fetch("/api/proxy/alerts/test-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel,
+          notify_email: email || null,
+          notify_webhook: webhookUrl || null,
+          gotify_token: gotifyToken || null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed");
+      }
+      setTestState("ok");
+      setTimeout(() => setTestState("idle"), 3000);
+    } catch (e) {
+      setTestState("error");
+      setTestError(e instanceof Error ? e.message : "Unknown error");
+      setTimeout(() => setTestState("idle"), 4000);
+    }
+  };
+
+  const canTest = channel !== "none" && (
+    (channel === "email" && !!email) ||
+    (channel === "gotify" && !!webhookUrl && !!gotifyToken) ||
+    (["discord", "slack", "webhook"].includes(channel) && !!webhookUrl)
+  );
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
@@ -204,6 +241,31 @@ export function AlertForm({ onSubmit }: AlertFormProps) {
                 />
               </div>
             </>
+          )}
+
+          {/* Test notification */}
+          {channel !== "none" && (
+            <div className="space-y-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                disabled={!canTest || testState === "loading"}
+                onClick={sendTest}
+              >
+                {testState === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
+                {testState === "ok" && <CheckCircle className="h-4 w-4 text-emerald-400" />}
+                {testState === "error" && <XCircle className="h-4 w-4 text-destructive" />}
+                {testState === "idle" && <Send className="h-4 w-4" />}
+                {testState === "loading" ? "Sending…" : testState === "ok" ? "Sent!" : testState === "error" ? "Failed" : "Send Test Notification"}
+              </Button>
+              {testState === "error" && testError && (
+                <p className="text-xs text-destructive">{testError}</p>
+              )}
+              {!canTest && (
+                <p className="text-xs text-muted-foreground">Fill in the fields above to enable the test.</p>
+              )}
+            </div>
           )}
 
           <Button type="submit" className="w-full">
