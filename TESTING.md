@@ -2,12 +2,20 @@
 
 ## Backend (Python / pytest)
 
-**57 Tests** — API routes, auth, settings, services, observability, backup
+**93 Tests** — API routes, auth, settings, services, observability, backup, notifications
 
 ```bash
 cd backend
 pip install -r requirements.txt
 pytest tests/ -v
+```
+
+**Arch Linux** (kein pip im System-Python):
+```bash
+cd backend
+python -m venv .venv --system-site-packages
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m pytest tests/ -v
 ```
 
 Mit Coverage:
@@ -28,8 +36,10 @@ pytest tests/ --cov=app --cov-report=term-missing
 | `tests/test_settings.py` | Settings CRUD, Passwort-Maskierung, Auth |
 | `tests/test_observability.py` | Health Checks, Prometheus Metrics, Trace IDs |
 | `tests/test_backup.py` | Backup Create/List/Download, Restore, Auth |
+| `tests/test_notifications.py` | Discord/Slack/Gotify/Webhook Payload, E-Mail, Retry-Logik, `/alerts/test-notification` Endpoint |
 
 Tests nutzen eine In-Memory SQLite DB (`conftest.py`), keine externe Infrastruktur nötig.
+Notification-Tests mocken alle externen Aufrufe (SMTP, HTTP) — keine echten Credentials nötig.
 
 ---
 
