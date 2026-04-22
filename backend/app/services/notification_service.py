@@ -97,6 +97,24 @@ async def send_gotify_alert(base_url: str, token: str | None, message: str, seve
     return await _retry(_send, backoff_base=1, label=f"Gotify to {url}")
 
 
+async def send_telegram_alert(bot_token: str, chat_id: str, message: str, severity: str) -> bool:
+    if not bot_token or not chat_id:
+        logger.warning("Telegram bot_token or chat_id not configured, skipping alert")
+        return False
+
+    emoji = "🚨" if severity == "critical" else "⚠️"
+    text = f"{emoji} *InfraView Alert* [{severity.upper()}]\n\n{message}"
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    async def _send():
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"})
+            resp.raise_for_status()
+            logger.info(f"Telegram alert sent to chat {chat_id}")
+
+    return await _retry(_send, backoff_base=1, label=f"Telegram to chat {chat_id}")
+
+
 async def send_webhook_alert(url: str, channel: str, payload: dict) -> bool:
     body = _format_webhook_payload(url, channel, payload)
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 (2026-04-22)
+
+### Features
+
+- **Container crash alerts** — Agent detects container crashes (unexpected exit) and restart loops (3× in 5 min) via Docker events API. Events appear in alert history and trigger notifications. Configurable: alert on any exit or only non-zero exit codes (Settings → Alerts).
+- **Disk I/O metrics** — Real-time read/write MB/s shown on the Disk card in server detail.
+- **Per-container stats** — CPU % and memory usage per container shown in the container list (Docker Stats API).
+- **Telegram notifications** — New alert channel: Bot Token + Chat ID. Works in alert rules and test-notification.
+- **One-command agent install** — `curl | bash` script for all Linux distros (apt/pacman/dnf/yum/zypper/apk). Supports `--docker` mode and `--uninstall`.
+- **Server sort + offline-last** — Server overview sorts by name/CPU/memory; offline servers always pushed to the bottom.
+- **Server detail tabs** — Server detail page split into Overview / Containers / Alerts tabs.
+
+---
+
 ## v0.2.8 (2026-04-22)
 
 ### Features

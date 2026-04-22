@@ -21,6 +21,8 @@ class DiskMetrics(BaseModel):
     used_bytes: int
     free_bytes: int
     path: str
+    read_bytes_ps: float = 0.0
+    write_bytes_ps: float = 0.0
 
 
 class NetworkMetrics(BaseModel):
@@ -72,6 +74,9 @@ class ContainerSchema(BaseModel):
     created: int
     update_available: bool = False
     latest_version: str | None = None
+    cpu_percent: float = 0.0
+    memory_bytes: int = 0
+    memory_limit: int = 0
 
 
 class ServerResponse(BaseModel):

@@ -1,6 +1,7 @@
 "use client";
 
 import { Play, Square, RotateCcw, MoreVertical, ArrowUpCircle } from "lucide-react";
+import { formatBytes } from "../_lib/utils";
 import {
   Table,
   TableBody,
@@ -81,7 +82,8 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
               <TableHead className="text-xs">Name</TableHead>
               <TableHead className="text-xs">Image</TableHead>
               <TableHead className="text-xs">State</TableHead>
-              <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs">CPU</TableHead>
+              <TableHead className="text-xs">Memory</TableHead>
               <TableHead className="text-xs w-10">Logs</TableHead>
               <TableHead className="text-xs w-12"></TableHead>
             </TableRow>
@@ -130,8 +132,13 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
                     {container.state}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {container.status}
+                <TableCell className="text-sm font-mono text-muted-foreground">
+                  {container.state === "running" ? `${(container.cpu_percent ?? 0).toFixed(1)}%` : "—"}
+                </TableCell>
+                <TableCell className="text-sm font-mono text-muted-foreground">
+                  {container.state === "running" && container.memory_bytes
+                    ? `${formatBytes(container.memory_bytes)}${container.memory_limit ? ` / ${formatBytes(container.memory_limit)}` : ""}`
+                    : "—"}
                 </TableCell>
                 <TableCell>
                   <ContainerLogs

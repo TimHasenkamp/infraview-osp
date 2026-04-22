@@ -23,6 +23,9 @@ CONFIGURABLE_SETTINGS = {
     "downsample_1h_after_hours": ("downsample_1h_after_hours", int, "Downsample to 1h after (hours)", "data"),
     # Agent
     "agent_timeout_seconds": ("agent_timeout_seconds", int, "Agent Timeout (seconds)", "agent"),
+    # Container crash alerts
+    "container_crash_alerts_enabled": ("container_crash_alerts_enabled", bool, "Enable container crash alerts", "alerts"),
+    "container_crash_alert_on_any_exit": ("container_crash_alert_on_any_exit", bool, "Alert on any container stop (including exit code 0)", "alerts"),
 }
 
 # Sensitive keys whose values are masked in responses

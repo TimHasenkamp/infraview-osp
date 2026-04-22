@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -33,6 +34,61 @@ func (d *DockerClient) RawClient() *client.Client {
 	return d.cli
 }
 
+// containerStatsJSON is the subset of Docker's stats response we need.
+type containerStatsJSON struct {
+	CPUStats struct {
+		CPUUsage struct {
+			TotalUsage uint64 `json:"total_usage"`
+		} `json:"cpu_usage"`
+		SystemCPUUsage uint64 `json:"system_cpu_usage"`
+		OnlineCPUs     int    `json:"online_cpus"`
+	} `json:"cpu_stats"`
+	PreCPUStats struct {
+		CPUUsage struct {
+			TotalUsage uint64 `json:"total_usage"`
+		} `json:"cpu_usage"`
+		SystemCPUUsage uint64 `json:"system_cpu_usage"`
+	} `json:"precpu_stats"`
+	MemoryStats struct {
+		Usage uint64 `json:"usage"`
+		Limit uint64 `json:"limit"`
+		Stats struct {
+			Cache uint64 `json:"cache"`
+		} `json:"stats"`
+	} `json:"memory_stats"`
+}
+
+func (d *DockerClient) fetchContainerStats(ctx context.Context, containerID string) (cpuPercent float64, memBytes, memLimit uint64) {
+	resp, err := d.cli.ContainerStats(ctx, containerID, false)
+	if err != nil {
+		return 0, 0, 0
+	}
+	defer resp.Body.Close()
+
+	var s containerStatsJSON
+	if err := json.NewDecoder(resp.Body).Decode(&s); err != nil {
+		return 0, 0, 0
+	}
+
+	cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage - s.PreCPUStats.CPUUsage.TotalUsage)
+	sysDelta := float64(s.CPUStats.SystemCPUUsage - s.PreCPUStats.SystemCPUUsage)
+	cpus := s.CPUStats.OnlineCPUs
+	if cpus == 0 {
+		cpus = 1
+	}
+	if sysDelta > 0 {
+		cpuPercent = (cpuDelta / sysDelta) * float64(cpus) * 100.0
+	}
+
+	// Subtract page cache for a more accurate "used" number.
+	cache := s.MemoryStats.Stats.Cache
+	if s.MemoryStats.Usage > cache {
+		memBytes = s.MemoryStats.Usage - cache
+	}
+	memLimit = s.MemoryStats.Limit
+	return cpuPercent, memBytes, memLimit
+}
+
 func (d *DockerClient) ListContainers(ctx context.Context) ([]collector.ContainerInfo, error) {
 	containers, err := d.cli.ContainerList(ctx, containerTypes.ListOptions{All: false})
 	if err != nil {
@@ -49,13 +105,18 @@ func (d *DockerClient) ListContainers(ctx context.Context) ([]collector.Containe
 			}
 		}
 
+		cpuPct, memBytes, memLimit := d.fetchContainerStats(ctx, c.ID)
+
 		result = append(result, collector.ContainerInfo{
-			ID:      c.ID[:12],
-			Name:    name,
-			Image:   c.Image,
-			State:   c.State,
-			Status:  c.Status,
-			Created: c.Created,
+			ID:          c.ID[:12],
+			Name:        name,
+			Image:       c.Image,
+			State:       c.State,
+			Status:      c.Status,
+			Created:     c.Created,
+			CPUPercent:  cpuPct,
+			MemoryBytes: memBytes,
+			MemoryLimit: memLimit,
 		})
 	}
 

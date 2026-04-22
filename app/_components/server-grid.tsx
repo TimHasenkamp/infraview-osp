@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { ServerCard } from "./server-card";
 import { AddAgentDialog } from "./add-agent-dialog";
 import { useWSContext } from "../_providers/websocket-provider";
+import { ArrowUpDown } from "lucide-react";
 import type { Server } from "../_lib/types";
+
+type SortKey = "name" | "cpu" | "memory" | "status";
 
 interface ServerGridProps {
   servers: Server[];
@@ -14,6 +17,7 @@ interface ServerGridProps {
 export function ServerGrid({ servers }: ServerGridProps) {
   const { servers: wsUpdates } = useWSContext();
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("status");
 
   const mergedServers = useMemo(() => {
     return servers.map((server) => {
@@ -38,9 +42,22 @@ export function ServerGrid({ servers }: ServerGridProps) {
     return Array.from(tags).sort();
   }, [mergedServers]);
 
-  const filteredServers = activeTag
-    ? mergedServers.filter((s) => s.tags.includes(activeTag))
-    : mergedServers;
+  const filteredAndSorted = useMemo(() => {
+    const filtered = activeTag
+      ? mergedServers.filter((s) => s.tags.includes(activeTag))
+      : mergedServers;
+
+    return [...filtered].sort((a, b) => {
+      // Online servers always first regardless of sort key
+      if (a.status !== b.status) return a.status === "online" ? -1 : 1;
+      switch (sortKey) {
+        case "name":   return (a.display_name ?? a.hostname).localeCompare(b.display_name ?? b.hostname);
+        case "cpu":    return b.cpu.usage_percent - a.cpu.usage_percent;
+        case "memory": return b.memory.usage_percent - a.memory.usage_percent;
+        default:       return (a.display_name ?? a.hostname).localeCompare(b.display_name ?? b.hostname);
+      }
+    });
+  }, [mergedServers, activeTag, sortKey]);
 
   if (mergedServers.length === 0) {
     return (
@@ -56,7 +73,7 @@ export function ServerGrid({ servers }: ServerGridProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex flex-wrap gap-1.5">
           {allTags.length > 0 && (
             <>
@@ -80,10 +97,24 @@ export function ServerGrid({ servers }: ServerGridProps) {
             </>
           )}
         </div>
-        <AddAgentDialog />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <ArrowUpDown className="h-3 w-3" />
+            {(["status", "name", "cpu", "memory"] as SortKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSortKey(key)}
+                className={`px-2 py-0.5 rounded capitalize transition-colors ${sortKey === key ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+          <AddAgentDialog />
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredServers.map((server) => (
+        {filteredAndSorted.map((server) => (
           <ServerCard key={server.id} server={server} />
         ))}
       </div>

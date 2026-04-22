@@ -6,7 +6,7 @@ from app.database import async_session
 from app.models import AlertRule, AlertEvent
 from app.schemas.ws_message import SystemSnapshot
 from app.ws.client_handler import broadcast_to_dashboards
-from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert
+from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert, send_telegram_alert
 from app.metrics import ALERTS_FIRED
 
 logger = logging.getLogger(__name__)
@@ -119,6 +119,10 @@ async def check_alerts(snapshot: SystemSnapshot):
             ok = await send_webhook_alert(rule.notify_webhook, channel, notif_payload)
             if not ok:
                 logger.error(f"Webhook notification failed for alert rule {rule.id}")
+        elif channel == "telegram" and rule.gotify_token and rule.telegram_chat_id:
+            ok = await send_telegram_alert(rule.gotify_token, rule.telegram_chat_id, message, rule.severity)
+            if not ok:
+                logger.error(f"Telegram notification failed for alert rule {rule.id}")
         elif channel == "none":
             # Legacy fallback: honour old rules that have notify_email/notify_webhook set
             if rule.notify_email:

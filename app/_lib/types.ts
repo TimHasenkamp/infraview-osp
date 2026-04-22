@@ -17,6 +17,8 @@ export interface DiskMetrics {
   used_bytes: number;
   free_bytes: number;
   path: string;
+  read_bytes_ps: number;
+  write_bytes_ps: number;
 }
 
 export interface NetworkMetrics {
@@ -68,6 +70,9 @@ export interface ContainerInfo {
   created: number;
   update_available?: boolean;
   latest_version?: string | null;
+  cpu_percent: number;
+  memory_bytes: number;
+  memory_limit: number;
 }
 
 export interface Server {
@@ -116,7 +121,7 @@ export interface MetricSnapshot {
   load15: number;
 }
 
-export type NotifyChannel = "none" | "email" | "discord" | "slack" | "gotify" | "webhook";
+export type NotifyChannel = "none" | "email" | "discord" | "slack" | "gotify" | "webhook" | "telegram";
 
 export interface AlertRule {
   id: number;
@@ -129,6 +134,7 @@ export interface AlertRule {
   notify_webhook: string | null;
   notify_channel: NotifyChannel;
   gotify_token: string | null;
+  telegram_chat_id: string | null;
   enabled: boolean;
   cooldown_seconds: number;
 }

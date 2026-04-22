@@ -21,6 +21,8 @@ type DiskMetrics struct {
 	UsedBytes    uint64  `json:"used_bytes"`
 	FreeBytes    uint64  `json:"free_bytes"`
 	Path         string  `json:"path"`
+	ReadBytesPS  float64 `json:"read_bytes_ps"`
+	WriteBytesPS float64 `json:"write_bytes_ps"`
 }
 
 type NetworkMetrics struct {
@@ -46,14 +48,17 @@ type ProcessInfo struct {
 }
 
 type ContainerInfo struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Image           string `json:"image"`
-	State           string `json:"state"`
-	Status          string `json:"status"`
-	Created         int64  `json:"created"`
-	UpdateAvailable bool   `json:"update_available"`
-	LatestVersion   string `json:"latest_version,omitempty"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Image           string  `json:"image"`
+	State           string  `json:"state"`
+	Status          string  `json:"status"`
+	Created         int64   `json:"created"`
+	UpdateAvailable bool    `json:"update_available"`
+	LatestVersion   string  `json:"latest_version,omitempty"`
+	CPUPercent      float64 `json:"cpu_percent"`
+	MemoryBytes     uint64  `json:"memory_bytes"`
+	MemoryLimit     uint64  `json:"memory_limit"`
 }
 
 type SystemSnapshot struct {

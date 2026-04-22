@@ -12,7 +12,7 @@ from app.schemas.alert import (
     AlertEventResponse,
     PaginatedAlertEventResponse,
 )
-from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert
+from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert, send_telegram_alert
 
 router = APIRouter()
 
@@ -117,6 +117,7 @@ class TestNotificationBody(BaseModel):
     notify_email: str | None = None
     notify_webhook: str | None = None
     gotify_token: str | None = None
+    telegram_chat_id: str | None = None
 
 
 @router.post("/alerts/test-notification")
@@ -129,6 +130,8 @@ async def test_notification(body: TestNotificationBody):
         ok = await send_email_alert(body.notify_email, message, severity)
     elif body.channel == "gotify" and body.notify_webhook:
         ok = await send_gotify_alert(body.notify_webhook, body.gotify_token, message, severity)
+    elif body.channel == "telegram" and body.gotify_token and body.telegram_chat_id:
+        ok = await send_telegram_alert(body.gotify_token, body.telegram_chat_id, message, severity)
     elif body.channel in ("discord", "slack", "webhook") and body.notify_webhook:
         ok = await send_webhook_alert(body.notify_webhook, body.channel, {
             "server_id": "test",

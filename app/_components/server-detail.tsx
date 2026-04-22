@@ -119,6 +119,9 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
           label="Disk"
           value={server.disk.usage_percent}
           detail={`${formatBytes(server.disk.used_bytes)} / ${formatBytes(server.disk.total_bytes)}`}
+          extra={server.disk.read_bytes_ps > 0 || server.disk.write_bytes_ps > 0
+            ? `R ${formatBytes(server.disk.read_bytes_ps)}/s  W ${formatBytes(server.disk.write_bytes_ps)}/s`
+            : undefined}
         />
         <Card>
           <CardContent className="pt-3 pb-3">
@@ -216,11 +219,13 @@ function MetricCard({
   label,
   value,
   detail,
+  extra,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   detail: string;
+  extra?: string;
 }) {
   return (
     <Card>
@@ -231,6 +236,7 @@ function MetricCard({
         </div>
         <MetricGauge label="" value={value} />
         <p className="text-xs text-muted-foreground mt-2">{detail}</p>
+        {extra && <p className="text-xs text-muted-foreground/70 mt-0.5 font-mono">{extra}</p>}
       </CardContent>
     </Card>
   );

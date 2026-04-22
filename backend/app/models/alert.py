@@ -17,6 +17,7 @@ class AlertRule(Base):
     notify_webhook: Mapped[str | None] = mapped_column(String, nullable=True)
     notify_channel: Mapped[str | None] = mapped_column(String, nullable=True, default="none")
     gotify_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    telegram_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     cooldown_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

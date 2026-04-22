@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Key, Mail, Database, Radio } from "lucide-react";
+import { ArrowLeft, Save, Key, Mail, Database, Radio, Bell } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ const CATEGORY_CONFIG = {
   email: { label: "Email / SMTP", icon: Mail, description: "SMTP settings for email alerts" },
   data: { label: "Data & Retention", icon: Database, description: "Metric storage and downsampling" },
   agent: { label: "Agent", icon: Radio, description: "Agent connection settings" },
+  alerts: { label: "Alerts", icon: Bell, description: "Container crash alert settings" },
 } as const;
 
 export default function SettingsPage() {

@@ -6,11 +6,13 @@ from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select, delete
 from app.database import async_session
-from app.models import Server, Metric, Container
+from app.models import Server, Metric, Container, AlertRule, AlertEvent
 from app.schemas.ws_message import SystemSnapshot
 from app.auth import verify_agent_key, verify_ws_token
 from app.ws.client_handler import broadcast_to_dashboards
 from app.metrics import CONNECTED_AGENTS, METRICS_INGESTED
+from app.services.settings_service import get_setting
+from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert, send_telegram_alert
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +112,10 @@ async def agent_websocket(websocket: WebSocket):
                         **payload,
                     },
                 })
+
+            elif msg_type == "container_crash_event":
+                payload = data.get("payload", {})
+                await _handle_container_crash(payload)
 
             elif msg_type == "pong":
                 pass
@@ -351,6 +357,102 @@ async def check_agent_timeouts():
 
         except Exception as e:
             logger.error(f"Agent timeout check failed: {e}")
+
+
+async def _handle_container_crash(payload: dict):
+    """Process a container crash or restart-loop event from an agent."""
+    async with async_session() as db:
+        enabled = await get_setting(db, "container_crash_alerts_enabled")
+        if enabled.lower() == "false":
+            return
+
+        exit_code: int = payload.get("exit_code", 0)
+        event_type: str = payload.get("event_type", "crash")
+        agent_id: str = payload.get("agent_id", "unknown")
+        container_name: str = payload.get("container_name", "unknown")
+
+        # Filter exit code 0 unless the user explicitly wants all-exit alerts.
+        if event_type == "crash" and exit_code == 0:
+            on_any = await get_setting(db, "container_crash_alert_on_any_exit")
+            if on_any.lower() != "true":
+                return
+
+        severity = "critical"
+        if event_type == "restart_loop":
+            restart_count = payload.get("restart_count", 0)
+            message = (
+                f"Container '{container_name}' is restart-looping on {agent_id} "
+                f"({restart_count} crashes in 5 min)"
+            )
+        else:
+            message = (
+                f"Container '{container_name}' stopped on {agent_id} "
+                f"(exit code {exit_code})"
+            )
+            if exit_code == 0:
+                severity = "warning"
+
+        now = datetime.utcnow()
+        event = AlertEvent(
+            rule_id=0,
+            server_id=agent_id,
+            metric=event_type,
+            value=float(exit_code),
+            threshold=0.0,
+            severity=severity,
+            message=message,
+            fired_at=now,
+        )
+        db.add(event)
+        await db.commit()
+        await db.refresh(event)
+
+    await broadcast_to_dashboards({
+        "type": "alert_event",
+        "payload": {
+            "rule_id": 0,
+            "server_id": agent_id,
+            "metric": event_type,
+            "value": float(exit_code),
+            "threshold": 0.0,
+            "severity": severity,
+            "message": message,
+            "timestamp": now.timestamp(),
+        },
+    })
+
+    # Notify via the first enabled alert rule for this server that has a channel set.
+    async with async_session() as db:
+        result = await db.execute(
+            select(AlertRule).where(
+                AlertRule.enabled == True,
+                AlertRule.notify_channel != "none",
+                AlertRule.notify_channel != None,
+                (AlertRule.server_id == agent_id) | (AlertRule.server_id == None),
+            )
+        )
+        rule = result.scalars().first()
+
+    if not rule:
+        return
+
+    channel = rule.notify_channel or "none"
+    notif_payload = {
+        "server_id": agent_id,
+        "metric": event_type,
+        "value": float(exit_code),
+        "threshold": 0.0,
+        "severity": severity,
+        "message": message,
+    }
+    if channel == "email" and rule.notify_email:
+        await send_email_alert(rule.notify_email, message, severity)
+    elif channel == "gotify" and rule.notify_webhook:
+        await send_gotify_alert(rule.notify_webhook, rule.gotify_token, message, severity)
+    elif channel == "telegram" and rule.gotify_token and rule.telegram_chat_id:
+        await send_telegram_alert(rule.gotify_token, rule.telegram_chat_id, message, severity)
+    elif channel in ("discord", "slack", "webhook") and rule.notify_webhook:
+        await send_webhook_alert(rule.notify_webhook, channel, notif_payload)
 
 
 async def _mark_offline(agent_id: str):

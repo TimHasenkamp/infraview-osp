@@ -205,6 +205,28 @@ func main() {
 		}
 	})
 
+	// Start container crash watcher if Docker is available.
+	if dockerClient != nil {
+		go container.WatchCrashEvents(ctx, dockerClient.RawClient(), func(ev container.CrashEvent) {
+			log.Warn().
+				Str("container", ev.ContainerName).
+				Str("event", ev.EventType).
+				Int("exit_code", ev.ExitCode).
+				Msg("Container crash event")
+			_ = wsClient.SendJSON(map[string]any{
+				"type": "container_crash_event",
+				"payload": map[string]any{
+					"agent_id":       cfg.AgentID,
+					"container_id":   ev.ContainerID,
+					"container_name": ev.ContainerName,
+					"event_type":     ev.EventType,
+					"exit_code":      ev.ExitCode,
+					"restart_count":  ev.RestartCount,
+				},
+			})
+		})
+	}
+
 	startTime := time.Now()
 	health.StartHealthServer(":8081", cfg.AgentID, startTime, wsClient.IsConnected)
 

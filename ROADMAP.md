@@ -5,7 +5,7 @@
 
 ---
 
-## Completed — v0.1 through v0.2.7
+## Completed — v0.1 through v0.3
 
 <details>
 <summary>click to expand</summary>
@@ -30,6 +30,13 @@
 - [x] Multi-arch Docker images (amd64 + arm64)
 - [x] Docker Compose templates (Traefik, Nginx SSL, Caddy, agent-only)
 - [x] Kubernetes manifests
+- [x] Container crash alerts (auto-detect crash + restart loops, configurable exit-code filter)
+- [x] Disk I/O metrics (read/write MB/s on disk card)
+- [x] Per-container CPU % and memory usage in container list
+- [x] Telegram notification channel
+- [x] One-command agent install (`curl | bash`, all distros, Docker mode, uninstall)
+- [x] Offline servers sorted to bottom, sort by name/CPU/memory
+- [x] Server detail tabs (Overview / Containers / Alerts)
 
 </details>
 
@@ -45,8 +52,8 @@ The goal is to make InfraView more complete as a day-to-day monitoring tool — 
 
 The agent currently collects top-level numbers. These additions give real diagnostic value without adding complexity.
 
-- [ ] **Disk I/O** — read/write MB/s per disk, shown in the metric chart
-- [ ] **Per-container resource usage** — CPU % and memory per container (Docker stats API)
+- [x] **Disk I/O** — read/write MB/s shown on the disk card
+- [x] **Per-container resource usage** — CPU % and memory per container in container list
 - [ ] **Network interface breakdown** — per-interface traffic + IP addresses (not just totals)
 - [ ] **Top processes refresh** — processes currently only show on initial snapshot; should update live like metrics
 
@@ -54,8 +61,8 @@ The agent currently collects top-level numbers. These additions give real diagno
 
 ### 🔔 Smarter Alerting
 
-- [ ] **Container crash alerts** — fire when a container stops unexpectedly or restart-loops
-- [ ] **Telegram notifications** — simple bot API, very popular in the self-hosted community
+- [x] **Container crash alerts** — fires on unexpected exit or restart loop (3× in 5 min)
+- [x] **Telegram notifications** — Bot API with token + chat ID
 - [ ] **Maintenance windows** — suppress alerts for a time range (e.g. during planned updates)
 - [ ] **Re-notify / escalation** — send a follow-up after N minutes if an alert is still open and unacknowledged
 
@@ -63,7 +70,7 @@ The agent currently collects top-level numbers. These additions give real diagno
 
 ### 🛠️ Operational Quality
 
-- [ ] **One-command install** — `curl | bash` that detects OS, installs everything via Docker, generates `.env` automatically
+- [x] **One-command install** — `curl | bash` for all distros + Docker mode + uninstall
 - [ ] **Log streaming** — tail system journal or arbitrary log files from the dashboard, not just container logs
 - [ ] **Agent version display** — show agent version on the server detail page, highlight when outdated
 - [ ] **Image vulnerability scanning in CI** — Trivy on every release build, fail on CRITICAL
@@ -73,10 +80,10 @@ The agent currently collects top-level numbers. These additions give real diagno
 ### 🎨 UX & Quality of Life
 
 **Navigation & Overview**
-- [ ] **Server detail tabs** — split the long scroll into Overview / Containers / Logs / Alerts tabs
+- [x] **Server detail tabs** — Overview / Containers / Alerts tabs
 - [ ] **Global search** — find servers, containers, alert rules quickly from anywhere
-- [ ] **Sort servers** — sort overview by name, CPU, RAM, status, last seen
-- [ ] **Offline servers at the bottom** — online servers always first in the grid
+- [x] **Sort servers** — sort overview by name, CPU, RAM; online servers always first
+- [x] **Offline servers at the bottom** — always sorted behind online servers
 - [ ] **Summary bar** — total servers / online / alerts active at a glance on the dashboard
 - [ ] **Favorites / pinned servers** — pin important servers to always appear first
 

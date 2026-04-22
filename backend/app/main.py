@@ -97,6 +97,7 @@ _MIGRATIONS = [
     ("servers", "public_ip", "VARCHAR"),
     ("alert_rules", "notify_channel", "VARCHAR DEFAULT 'none'"),
     ("alert_rules", "gotify_token", "VARCHAR"),
+    ("alert_rules", "telegram_chat_id", "VARCHAR"),
 ]
 
 

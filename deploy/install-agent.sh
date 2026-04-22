@@ -1,8 +1,15 @@
 #!/bin/sh
 # InfraView Agent — Install Script
-# Usage: curl -sSL https://github.com/timhasenkamp/infraview-osp/releases/latest/download/install-agent.sh | bash
-# Or with config:
-#   BACKEND_URL=wss://monitor.example.com AGENT_API_KEY=yourkey bash install-agent.sh
+#
+# Native (systemd):
+#   curl -sSL https://github.com/timhasenkamp/infraview-osp/releases/latest/download/install-agent.sh | bash
+#   BACKEND_URL=wss://monitor.example.com AGENT_API_KEY=key bash install-agent.sh
+#
+# Docker Compose mode:
+#   bash install-agent.sh --docker
+#
+# Uninstall:
+#   bash install-agent.sh --uninstall
 
 set -e
 
@@ -148,8 +155,78 @@ EOF
   info "systemd service installed and started"
 }
 
+# ── Docker Compose install ────────────────────────────────────────────────────
+install_docker() {
+  command -v docker >/dev/null 2>&1 || error "Docker not found. Install Docker first: https://docs.docker.com/engine/install/"
+
+  if [ -z "$BACKEND_URL" ]; then
+    printf "Backend URL (e.g. wss://monitor.example.com/ws/agent): "
+    read -r BACKEND_URL
+  fi
+  if [ -z "$AGENT_API_KEY" ]; then
+    printf "Agent API Key: "
+    read -r AGENT_API_KEY
+  fi
+  AGENT_ID="${AGENT_ID:-$(hostname)}"
+
+  COMPOSE_DIR="/opt/infraview-agent"
+  mkdir -p "$COMPOSE_DIR"
+
+  cat > "$COMPOSE_DIR/.env" <<EOF
+INFRAVIEW_BACKEND_URL=${BACKEND_URL}
+INFRAVIEW_API_KEY=${AGENT_API_KEY}
+INFRAVIEW_AGENT_ID=${AGENT_ID}
+EOF
+  chmod 600 "$COMPOSE_DIR/.env"
+
+  cat > "$COMPOSE_DIR/docker-compose.yml" <<'EOF'
+services:
+  agent:
+    image: ghcr.io/timhasenkamp/infraview-osp/infraview-agent:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    network_mode: host
+    privileged: false
+EOF
+
+  docker compose -f "$COMPOSE_DIR/docker-compose.yml" pull
+  docker compose -f "$COMPOSE_DIR/docker-compose.yml" up -d
+  info "Agent running via Docker. Manage with: docker compose -f $COMPOSE_DIR/docker-compose.yml"
+}
+
+# ── Uninstall ─────────────────────────────────────────────────────────────────
+uninstall() {
+  info "Uninstalling InfraView Agent..."
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet infraview-agent 2>/dev/null; then
+    systemctl stop infraview-agent
+    systemctl disable infraview-agent
+  fi
+  rm -f "$SERVICE_FILE" "$INSTALL_DIR/$BINARY_NAME"
+  rm -rf "$CONFIG_DIR"
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload
+  fi
+  # Docker cleanup
+  if [ -f "/opt/infraview-agent/docker-compose.yml" ]; then
+    docker compose -f /opt/infraview-agent/docker-compose.yml down 2>/dev/null || true
+    rm -rf /opt/infraview-agent
+  fi
+  info "Uninstalled."
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
+  case "${1:-}" in
+    --uninstall) [ "$(id -u)" -eq 0 ] || error "Run as root"; uninstall; return ;;
+    --docker)    [ "$(id -u)" -eq 0 ] || error "Run as root"; install_docker; return ;;
+  esac
+
+  [ "$(id -u)" -eq 0 ] || error "Please run as root (sudo bash install-agent.sh)"
+
   info "Installing InfraView Agent..."
 
   ensure_downloader
@@ -175,12 +252,19 @@ main() {
 
   if command -v systemctl >/dev/null 2>&1; then
     install_service
+    sleep 2
+    if systemctl is-active --quiet infraview-agent; then
+      info "Agent is running ✓"
+    else
+      warn "Agent may not have started — check: journalctl -u infraview-agent -n 20"
+    fi
   else
     warn "systemd not found — start the agent manually:"
     warn "  $INSTALL_DIR/$BINARY_NAME"
   fi
 
-  info "Done! Check status with: systemctl status infraview-agent"
+  info "Done! Check status: systemctl status infraview-agent"
+  info "Uninstall anytime: bash install-agent.sh --uninstall"
 }
 
 main "$@"

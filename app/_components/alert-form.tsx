@@ -22,12 +22,13 @@ import { Plus, Pencil, Send, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import type { AlertRule, NotifyChannel } from "../_lib/types";
 
 const CHANNELS: { value: NotifyChannel; label: string; icon: string }[] = [
-  { value: "none",    label: "None",             icon: "—"  },
-  { value: "email",   label: "Email",             icon: "✉"  },
-  { value: "discord", label: "Discord",           icon: "🎮" },
-  { value: "slack",   label: "Slack",             icon: "💬" },
-  { value: "gotify",  label: "Gotify",            icon: "🔔" },
-  { value: "webhook", label: "Webhook (generic)", icon: "🔗" },
+  { value: "none",     label: "None",             icon: "—"  },
+  { value: "email",    label: "Email",             icon: "✉"  },
+  { value: "discord",  label: "Discord",           icon: "🎮" },
+  { value: "slack",    label: "Slack",             icon: "💬" },
+  { value: "gotify",   label: "Gotify",            icon: "🔔" },
+  { value: "telegram", label: "Telegram",          icon: "✈️" },
+  { value: "webhook",  label: "Webhook (generic)", icon: "🔗" },
 ];
 
 interface AlertFormProps {
@@ -53,6 +54,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
   const [email, setEmail] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [gotifyToken, setGotifyToken] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
   const [testState, setTestState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [testError, setTestError] = useState("");
 
@@ -66,6 +68,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
       setEmail(rule.notify_email ?? "");
       setWebhookUrl(rule.notify_webhook ?? "");
       setGotifyToken(rule.gotify_token ?? "");
+      setTelegramChatId(rule.telegram_chat_id ?? "");
       setTestState("idle");
       setTestError("");
     }
@@ -80,9 +83,10 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
       threshold: parseFloat(threshold),
       severity: severity as AlertRule["severity"],
       notify_email: channel === "email" ? email || null : null,
-      notify_webhook: channel !== "none" && channel !== "email" ? webhookUrl || null : null,
+      notify_webhook: channel !== "none" && channel !== "email" && channel !== "telegram" ? webhookUrl || null : null,
       notify_channel: channel,
-      gotify_token: channel === "gotify" ? gotifyToken || null : null,
+      gotify_token: channel === "gotify" ? gotifyToken || null : channel === "telegram" ? gotifyToken || null : null,
+      telegram_chat_id: channel === "telegram" ? telegramChatId || null : null,
       enabled: rule?.enabled ?? true,
       cooldown_seconds: rule?.cooldown_seconds ?? 300,
     });
@@ -98,6 +102,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
     setEmail("");
     setWebhookUrl("");
     setGotifyToken("");
+    setTelegramChatId("");
     setTestState("idle");
     setTestError("");
   };
@@ -114,6 +119,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
           notify_email: email || null,
           notify_webhook: webhookUrl || null,
           gotify_token: gotifyToken || null,
+          telegram_chat_id: telegramChatId || null,
         }),
       });
       if (!res.ok) {
@@ -132,6 +138,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
   const canTest = channel !== "none" && (
     (channel === "email" && !!email) ||
     (channel === "gotify" && !!webhookUrl && !!gotifyToken) ||
+    (channel === "telegram" && !!gotifyToken && !!telegramChatId) ||
     (["discord", "slack", "webhook"].includes(channel) && !!webhookUrl)
   );
 
@@ -261,6 +268,30 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
                   placeholder="App token from Gotify"
                   value={gotifyToken}
                   onChange={(e) => setGotifyToken(e.target.value)}
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          {channel === "telegram" && (
+            <>
+              <div className="space-y-2">
+                <Label>Bot Token</Label>
+                <Input
+                  type="password"
+                  placeholder="123456789:ABCdef..."
+                  value={gotifyToken}
+                  onChange={(e) => setGotifyToken(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Chat ID</Label>
+                <Input
+                  placeholder="-1001234567890"
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
                   required
                 />
               </div>

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     downsample_5min_after_hours: int = 48
     downsample_1h_after_hours: int = 168  # 7 days
 
+    # Container crash alerts
+    container_crash_alerts_enabled: bool = True
+    container_crash_alert_on_any_exit: bool = False
+
     model_config = {"env_prefix": "", "case_sensitive": False}
 
 

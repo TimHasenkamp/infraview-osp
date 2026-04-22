@@ -5,7 +5,7 @@ export function normalizeServer(raw: ServerResponse): Server {
     ...raw,
     cpu: raw.cpu ?? { usage_percent: 0, core_count: 0, per_core: [] },
     memory: raw.memory ?? { usage_percent: 0, total_bytes: 0, used_bytes: 0, avail_bytes: 0 },
-    disk: raw.disk ?? { usage_percent: 0, total_bytes: 0, used_bytes: 0, free_bytes: 0, path: "/" },
+    disk: raw.disk ?? { usage_percent: 0, total_bytes: 0, used_bytes: 0, free_bytes: 0, path: "/", read_bytes_ps: 0, write_bytes_ps: 0 },
     network: raw.network ?? { bytes_sent: 0, bytes_recv: 0, packets_sent: 0, packets_recv: 0 },
     load: raw.load ?? { load1: 0, load5: 0, load15: 0 },
     tags: raw.tags ?? [],
