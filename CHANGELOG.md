@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.2.8 (2026-04-22)
+
+### Features
+
+- **Alert Rule bearbeiten** — Bestehende Alert Rules können direkt in der Tabelle über das Stift-Icon bearbeitet werden. Das Formular öffnet sich vorausgefüllt mit den aktuellen Werten.
+- **Test-Notification Button** — Im Alert-Formular gibt es einen Test-Button, der eine Probe-Benachrichtigung an den konfigurierten Kanal sendet, ohne eine echte Rule zu speichern.
+- **Notification Channels** — Alert Rules unterstützen jetzt Discord, Slack, Gotify, E-Mail und generische Webhooks über ein Dropdown. Kanal-spezifische Felder (Token, URL) erscheinen dynamisch.
+
+### Fixes
+
+- **Dropdown Dark Mode** — Native `<select>`-Elemente im Alert-Formular wurden durch base-ui Select-Komponenten ersetzt, die korrekt im Dark Mode dargestellt werden.
+
+### Style
+
+- **Brand-Farbe** — Primärfarbe auf `#00ce84` (Green) aktualisiert, ersetzt das vorherige Türkis durchgängig in allen UI-Elementen.
+
+### Tests
+
+- **Notification Test Suite** — 36 neue Tests für alle Notification-Kanäle: Payload-Struktur (Discord, Slack, Gotify, Webhook), E-Mail-Aufbau, Retry-Logik und den `/alerts/test-notification` Endpoint. Alle externen Aufrufe sind gemockt.
+
+---
+
 ## v0.2.6 (2026-03-31)
 
 ### Fixes
