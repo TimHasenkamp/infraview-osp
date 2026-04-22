@@ -153,7 +153,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
 
           <div className="space-y-2">
             <Label>Metric</Label>
-            <Select value={metric} onValueChange={setMetric}>
+            <Select value={metric} onValueChange={(v) => v && setMetric(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -178,7 +178,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
 
           <div className="space-y-2">
             <Label>Severity</Label>
-            <Select value={severity} onValueChange={setSeverity}>
+            <Select value={severity} onValueChange={(v) => v && setSeverity(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -191,7 +191,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
 
           <div className="space-y-2">
             <Label>Notification Channel</Label>
-            <Select value={channel} onValueChange={(v) => setChannel(v as NotifyChannel)}>
+            <Select value={channel} onValueChange={(v) => v && setChannel(v as NotifyChannel)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
