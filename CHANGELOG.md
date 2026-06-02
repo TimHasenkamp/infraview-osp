@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.3.2 (2026-06-02)
+
+### Features
+
+- **Phased updates no longer over-counted** — On Ubuntu, `apt list --upgradable` lists packages held back by phased rollout (e.g. `cloud-init`) that `apt upgrade` won't actually install yet. The agent now detects and filters these, so the dashboard's update count matches what the host will really install. (Containerised agent: requires the new `/etc/machine-id` mount, added to the compose templates.)
+
+### Security & Maintenance
+
+- **Dependency updates** — Next.js 16.2.0 → 16.2.7, Go agent dependencies (OpenTelemetry 1.42 → 1.44 and others), and pytest 8 → 9.0.3, resolving a batch of Dependabot advisories.
+- **Removed redundant `package-lock.json`** — the project builds with pnpm only; the stale npm lockfile duplicated every advisory.
+- Agent image base bumped to `debian:13-slim` (apt 3.0, required for phased-update detection).
+
+### UI
+
+- **Primary color restored to turquoise.**
+- **Online / live indicators** are now consistently green with a glow regardless of the primary color — the header status badge no longer turns turquoise.
+- The Settings "Update Password" button now matches the primary button styling.
+
+### Docs
+
+- Roadmap: added optional two-factor authentication (TOTP + FIDO2/WebAuthn).
+
+---
+
 ## v0.3.1 (2026-06-02)
 
 ### Fixes
