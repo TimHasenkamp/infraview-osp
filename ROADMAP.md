@@ -74,6 +74,7 @@ The agent currently collects top-level numbers. These additions give real diagno
 - [ ] **Log streaming** — tail system journal or arbitrary log files from the dashboard, not just container logs
 - [ ] **Agent version display** — show agent version on the server detail page, highlight when outdated
 - [ ] **Image vulnerability scanning in CI** — Trivy on every release build, fail on CRITICAL
+- [ ] **Two-factor authentication (2FA)** — optional second factor for the admin login: TOTP (authenticator app) and FIDO2/WebAuthn (security keys / passkeys), with recovery codes. Builds on the existing JWT + bcrypt auth; WebAuthn requires an HTTPS deployment
 
 ---
 
