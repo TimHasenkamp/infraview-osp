@@ -1,5 +1,6 @@
 FROM node:20-alpine
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Pin pnpm version — pnpm@latest now requires Node 22+, but this image is Node 20
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 WORKDIR /app
 
