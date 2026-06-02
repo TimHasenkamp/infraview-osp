@@ -226,12 +226,10 @@ class TestSendGotifyAlert:
         url, = mock_client.post.call_args[0]
         assert url.endswith("/message")
 
-    def test_strips_trailing_slash_from_url(self):
+    async def test_strips_trailing_slash_from_url(self):
         """URL with trailing slash should still produce a valid /message path."""
         # We just test the URL construction logic directly via the service
         # by checking the call — no real HTTP needed
-        import asyncio
-
         mock_response = MagicMock(spec=Response)
         mock_response.raise_for_status = MagicMock()
 
@@ -242,9 +240,7 @@ class TestSendGotifyAlert:
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_client_cls.return_value = mock_client
 
-            asyncio.get_event_loop().run_until_complete(
-                send_gotify_alert("https://gotify.example.com/", "tok", "msg", "warning")
-            )
+            await send_gotify_alert("https://gotify.example.com/", "tok", "msg", "warning")
 
         url = mock_client.post.call_args[0][0]
         assert url == "https://gotify.example.com/message"
