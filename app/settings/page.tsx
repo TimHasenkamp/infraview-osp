@@ -172,7 +172,7 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-              <Button type="submit" size="sm" variant="secondary" className="h-8 text-xs">
+              <Button type="submit" size="sm" className="h-8 text-xs">
                 Update Password
               </Button>
             </form>
