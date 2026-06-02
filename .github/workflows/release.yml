@@ -85,7 +85,7 @@ jobs:
           context: .
           file: ./Dockerfile.frontend
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=ghcr.io/${{ github.repository }}/frontend,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/timhasenkamp/infraview-osp/frontend,push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=frontend-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=frontend-${{ matrix.suffix }}
 
@@ -131,7 +131,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/frontend
+          images: ghcr.io/timhasenkamp/infraview-osp/frontend
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -142,7 +142,7 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.repository }}/frontend@sha256:%s ' *)
+            $(printf 'ghcr.io/timhasenkamp/infraview-osp/frontend@sha256:%s ' *)
 
   build-and-push:
     name: Build & Push (${{ matrix.name }})
