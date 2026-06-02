@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.1 (2026-06-02)
+
+### Fixes
+
+- **Threshold alerts now actually fire** — `check_alerts()` (CPU/RAM/Disk rules) was implemented but never called from the snapshot handler, so threshold alerts never triggered. It is now wired in, isolated so a failure can't disrupt metric ingestion. (Container crash alerts were unaffected — they use a separate path.)
+- **Dashboard WebSocket works out of the box** — `NEXT_PUBLIC_WS_URL` is inlined at build time, so the runtime env in the compose file had no effect and the browser fell back to a same-origin URL the standalone frontend doesn't proxy. It is now passed as a build arg, so the no-reverse-proxy setup connects to the backend directly.
+- **Container agent reports the host OS** — the agent read `/etc/os-release` from inside its own (Debian) image, so every containerised agent showed "Debian GNU/Linux 12" regardless of host. It now prefers a bind-mounted host os-release (`/host/os-release`), added to all compose templates and the k8s DaemonSet.
+
+### Features
+
+- **One-command install** — `curl … | sh` (`install.sh`) sets up the full stack behind a Caddy reverse proxy (dashboard/API/WebSocket on one origin → live updates work with no extra config), generates secrets/`.env` automatically, and starts everything. Local HTTP mode or `DOMAIN=…` for automatic HTTPS; `BUILD=1` builds from a source checkout.
+
+---
+
 ## v0.3.0 (2026-04-22)
 
 ### Features

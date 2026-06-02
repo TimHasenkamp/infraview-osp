@@ -1,8 +1,36 @@
 package collector
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestReadOSReleaseName(t *testing.T) {
+	dir := t.TempDir()
+
+	pretty := filepath.Join(dir, "pretty")
+	if err := os.WriteFile(pretty, []byte("NAME=\"Arch Linux\"\nPRETTY_NAME=\"Arch Linux\"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readOSReleaseName(pretty); got != "Arch Linux" {
+		t.Errorf("PRETTY_NAME: got %q, want %q", got, "Arch Linux")
+	}
+
+	// Falls back to NAME when PRETTY_NAME is absent
+	nameOnly := filepath.Join(dir, "nameonly")
+	if err := os.WriteFile(nameOnly, []byte("NAME=\"Fedora Linux\"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readOSReleaseName(nameOnly); got != "Fedora Linux" {
+		t.Errorf("NAME fallback: got %q, want %q", got, "Fedora Linux")
+	}
+
+	// Missing file yields empty so the caller tries the next candidate
+	if got := readOSReleaseName(filepath.Join(dir, "nope")); got != "" {
+		t.Errorf("missing file: got %q, want empty", got)
+	}
+}
 
 func TestNewCollector(t *testing.T) {
 	c := New("agent-1", "testhost", "/")

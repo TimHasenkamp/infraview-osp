@@ -30,40 +30,34 @@ The Next.js dashboard shows everything in real-time — no Prometheus, no Grafan
 
 ## Quick Start
 
-**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and the Docker Compose plugin.
+
+One command installs the whole stack behind a Caddy reverse proxy — so the dashboard, API and live-updating WebSocket share one origin — generates secrets, and starts everything:
 
 ```bash
-# 1. Download the compose file and example config
-mkdir infraview && cd infraview
-curl -fsSL https://raw.githubusercontent.com/TimHasenkamp/infraview-osp/main/docker-compose.yml -o docker-compose.yml
-curl -fsSL https://raw.githubusercontent.com/TimHasenkamp/infraview-osp/main/.env.example -o .env
-
-# 2. Start all services
-docker compose up -d
+curl -fsSL https://raw.githubusercontent.com/TimHasenkamp/infraview-osp/main/install.sh | sh
 ```
 
-Find your auto-generated admin password in the logs:
+Open the printed URL (default <http://localhost>) and grab the auto-generated admin password:
 
 ```bash
-docker compose logs backend | grep "Password"
+(cd infraview && docker compose logs backend | grep "Password")
 ```
 
-Open <http://localhost:3000> and log in.
+**Options** — prefix the command, e.g. `curl -fsSL .../install.sh | DOMAIN=monitor.example.com sh`:
 
-> **Production deployment** — generate secure secrets before going live:
->
-> ```bash
-> # Replace the placeholder values in .env
-> sed -i "s/change-me-jwt/$(openssl rand -hex 32)/" .env
-> sed -i "s/change-me-agent/$(openssl rand -hex 16)/" .env
-> docker compose up -d
-> ```
+| Variable | Effect |
+| --- | --- |
+| `DOMAIN=monitor.example.com` | Serve with automatic HTTPS via Let's Encrypt (ports 80 + 443). |
+| `HTTP_PORT=8080` | Host port in local mode (default 80). |
+| `NO_START=1` | Write the config but review it before starting. |
+| `BUILD=1` | Build images from a source checkout instead of pulling from GHCR. |
 
-Alternatively, clone the full repository if you want to build from source or contribute:
+Build from source instead of pulling images:
 
 ```bash
 git clone https://github.com/TimHasenkamp/infraview-osp.git
-cd infraview-osp && cp .env.example .env && docker compose up -d
+cd infraview-osp && BUILD=1 ./install.sh
 ```
 
 ---

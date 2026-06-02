@@ -52,3 +52,8 @@ backend/data/
 
 # agent build artifacts
 agent/build/
+
+# install.sh generated artifacts
+/infraview/
+docker-compose.local.yml
+Caddyfile.local

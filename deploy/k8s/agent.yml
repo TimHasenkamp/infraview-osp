@@ -38,6 +38,9 @@ spec:
             - name: proc
               mountPath: /host/proc
               readOnly: true
+            - name: os-release
+              mountPath: /host/os-release
+              readOnly: true
             - name: docker-sock
               mountPath: /var/run/docker.sock
               readOnly: true
@@ -55,6 +58,9 @@ spec:
         - name: proc
           hostPath:
             path: /proc
+        - name: os-release
+          hostPath:
+            path: /etc/os-release
         - name: docker-sock
           hostPath:
             path: /var/run/docker.sock

@@ -100,9 +100,33 @@ func collectUpdates() *UpdatesInfo {
 	return result
 }
 
-// collectOSName reads /etc/os-release and returns PRETTY_NAME (or NAME as fallback).
+// collectOSName returns the host's OS name (PRETTY_NAME, or NAME as fallback).
+// In container mode it prefers the host's os-release (bind-mounted in) so it
+// reports the actual host OS instead of the agent image's Debian base.
 func collectOSName() string {
-	data, err := os.ReadFile("/etc/os-release")
+	for _, path := range osReleaseCandidates() {
+		if name := readOSReleaseName(path); name != "" {
+			return name
+		}
+	}
+	return ""
+}
+
+// osReleaseCandidates lists os-release files to try, best first.
+func osReleaseCandidates() []string {
+	if inContainer {
+		host := os.Getenv("HOST_OS_RELEASE")
+		if host == "" {
+			host = "/host/os-release"
+		}
+		// Host first, container's own os-release only as a last resort.
+		return []string{host, "/etc/os-release"}
+	}
+	return []string{"/etc/os-release"}
+}
+
+func readOSReleaseName(path string) string {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}

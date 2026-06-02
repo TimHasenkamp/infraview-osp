@@ -13,6 +13,7 @@ from app.ws.client_handler import broadcast_to_dashboards
 from app.metrics import CONNECTED_AGENTS, METRICS_INGESTED
 from app.services.settings_service import get_setting
 from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert, send_telegram_alert
+from app.services.alert_service import check_alerts
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,13 @@ async def agent_websocket(websocket: WebSocket):
                         "containers": [c.model_dump() for c in snapshot.containers] if snapshot.containers else [],
                     },
                 })
+
+                # Evaluate threshold alert rules (CPU/RAM/Disk) against this snapshot.
+                # Isolated so a failure here never disrupts metric ingestion.
+                try:
+                    await check_alerts(snapshot)
+                except Exception as e:
+                    logger.error(f"Alert evaluation failed for {snapshot.agent_id}: {e}")
 
             elif msg_type == "container_logs_response":
                 payload = data.get("payload", {})

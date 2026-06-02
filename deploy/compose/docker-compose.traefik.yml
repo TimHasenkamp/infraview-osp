@@ -83,6 +83,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
+      - /etc/os-release:/host/os-release:ro
       - /var/lib/dpkg:/host-apt/dpkg:ro
       - /var/lib/apt/lists:/host-apt/lists:ro
       - /etc/apt:/host-apt/etc-apt:ro
