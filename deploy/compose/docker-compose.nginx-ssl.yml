@@ -65,12 +65,16 @@ services:
       - INFRAVIEW_API_KEY=${AGENT_API_KEY:?AGENT_API_KEY is required}
       - HOST_PROC=/host/proc
       - HOST_APT=/host-apt
+      # Lets the agent locate the compose file for "Update + Compose"
+      - COMPOSE_PROJECT_DIR=/host/compose
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
       - /etc/os-release:/host/os-release:ro
       # Host machine-id so apt's phased-update decision matches the host
       - /etc/machine-id:/host/machine-id:ro
+      # Compose file (read/write) so "Update + Compose" can patch the image tag
+      - .:/host/compose
       - /var/lib/dpkg:/host-apt/dpkg:ro
       - /var/lib/apt/lists:/host-apt/lists:ro
       - /etc/apt:/host-apt/etc-apt:ro

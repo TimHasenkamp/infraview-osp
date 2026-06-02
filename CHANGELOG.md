@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.3 (2026-06-02)
+
+### Fixes
+
+- **Dashboard WebSocket now works behind a reverse proxy** — the pre-built frontend image bakes in `NEXT_PUBLIC_WS_URL=""` at build time, and the client used `??` (nullish), which doesn't fall back on an empty string. The browser therefore opened a relative WebSocket URL (`wss://host/servers/<id>`) instead of `/ws/dashboard`, so no live data (metrics, processes, system updates) ever arrived in production. Now falls back to the same-origin `/ws/dashboard`.
+- **"Update + Compose" no longer crashes the page** — when the compose preview request failed (e.g. the agent couldn't read the compose file), the dialog rendered `undefined.split()` and crashed. It now shows the error instead.
+- **Compose editing wired up in production** — the Caddy/Traefik/nginx templates and `install.sh` now mount the compose file (`.:/host/compose`) and set `COMPOSE_PROJECT_DIR`, so the agent can read/patch it for "Update + Compose". Previously only the dev stack had this.
+
+---
+
 ## v0.3.2 (2026-06-02)
 
 ### Features

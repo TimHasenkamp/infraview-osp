@@ -63,9 +63,9 @@ export function ComposePreviewDialog({
       const res = await fetch(
         `${API_BASE_URL}/servers/${serverId}/containers/${containerId}/compose-preview?target_image=${encodeURIComponent(latestVersion)}`
       );
-      const data = await res.json();
-      if (data.error) {
-        toast.error(data.error);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.error || typeof data.current !== "string" || typeof data.proposed !== "string") {
+        toast.error(data?.error || `Failed to fetch compose preview (HTTP ${res.status})`);
         setOpen(false);
       } else {
         setPreview(data);

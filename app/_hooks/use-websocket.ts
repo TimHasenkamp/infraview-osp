@@ -23,7 +23,10 @@ export function useWebSocket(wsToken: string | null) {
     setStatus(attemptRef.current === 0 ? "connecting" : "reconnecting");
 
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const base = process.env.NEXT_PUBLIC_WS_URL ?? `${proto}//${window.location.host}/ws/dashboard`;
+    // Use || not ??: the GHCR image bakes in NEXT_PUBLIC_WS_URL="" (empty string)
+    // at build time, which is not nullish — so ?? would keep the empty string and
+    // produce a relative ws URL. Fall back to the same-origin /ws/dashboard.
+    const base = process.env.NEXT_PUBLIC_WS_URL || `${proto}//${window.location.host}/ws/dashboard`;
     const wsUrl = `${base}${base.includes("?") ? "&" : "?"}token=${tokenRef.current}`;
     const ws = new WebSocket(wsUrl);
 
