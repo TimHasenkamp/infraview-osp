@@ -15,10 +15,10 @@ interface HeaderProps {
 }
 
 const statusConfig = {
-  connected: { color: "bg-emerald-400", label: "Live", icon: Wifi },
+  connected: { color: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)] animate-pulse", label: "Live", icon: Wifi },
   connecting: { color: "bg-amber-400 animate-pulse", label: "Connecting...", icon: Wifi },
   reconnecting: { color: "bg-amber-400 animate-pulse", label: "Reconnecting...", icon: Wifi },
-  failed: { color: "bg-red-400", label: "Disconnected", icon: WifiOff },
+  failed: { color: "bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.7)]", label: "Disconnected", icon: WifiOff },
 } as const;
 
 export function Header({ serverCount, onlineCount }: HeaderProps) {
@@ -74,14 +74,18 @@ export function Header({ serverCount, onlineCount }: HeaderProps) {
             </Button>
           </Link>
           <Badge
-            variant={allOnline ? "default" : "destructive"}
-            className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-1 hidden sm:inline-flex"
+            variant="outline"
+            className={`gap-1.5 font-mono text-xs sm:text-sm px-2 sm:px-3 py-1 hidden sm:inline-flex ${
+              allOnline
+                ? "border-emerald-500/40 bg-emerald-950/50 text-emerald-400"
+                : "border-red-500/40 bg-red-950/50 text-red-400"
+            }`}
           >
             <span
               className={`inline-block h-2 w-2 rounded-full ${
                 allOnline
-                  ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]"
-                  : "bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                  ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)] animate-pulse"
+                  : "bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.7)]"
               }`}
             />
             {onlineCount}/{serverCount} online
