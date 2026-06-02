@@ -125,6 +125,35 @@ func osReleaseCandidates() []string {
 	return []string{"/etc/os-release"}
 }
 
+// hostMachineID returns the host's systemd machine-id. apt seeds its phased-
+// update decision with it, so the agent must use the host's value to predict
+// what `apt upgrade` would actually do. In container mode the host file is
+// bind-mounted in; natively the agent's own machine-id is already the host's.
+func hostMachineID() string {
+	for _, path := range machineIDCandidates() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		if id := strings.TrimSpace(string(data)); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+// machineIDCandidates lists machine-id files to try, best first.
+func machineIDCandidates() []string {
+	if inContainer {
+		host := os.Getenv("HOST_MACHINE_ID")
+		if host == "" {
+			host = "/host/machine-id"
+		}
+		return []string{host}
+	}
+	return []string{"/etc/machine-id", "/var/lib/dbus/machine-id"}
+}
+
 func readOSReleaseName(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -186,11 +215,7 @@ func collectApt() ([]PackageUpdate, bool) {
 
 	args := []string{"list", "--upgradable"}
 	if hostApt := os.Getenv("HOST_APT"); hostApt != "" {
-		args = append(args,
-			"-o", "Dir::State::status="+hostApt+"/dpkg/status",
-			"-o", "Dir::State::Lists="+hostApt+"/lists",
-			"-o", "Dir::Etc="+hostApt+"/etc-apt",
-		)
+		args = append(args, aptStateArgs(hostApt)...)
 	}
 	cmd := exec.Command("apt", args...)
 	cmd.Env = append(cmd.Environ(), "LANG=C")
@@ -198,7 +223,89 @@ func collectApt() ([]PackageUpdate, bool) {
 	if err != nil {
 		return []PackageUpdate{}, true
 	}
-	return parseLines(output, parseAptLine), true
+	pkgs := parseLines(output, parseAptLine)
+
+	// Drop packages apt is deferring due to phased rollout: they appear in
+	// `apt list --upgradable` but `apt upgrade` keeps them back, so counting
+	// them as available updates is misleading (e.g. cloud-init on Ubuntu).
+	return filterPhased(pkgs, aptPhasedPackages()), true
+}
+
+// aptStateArgs returns apt -o overrides pointing at the bind-mounted host
+// apt/dpkg directories, so a containerized agent inspects the host's packages
+// instead of its own (nearly empty) ones.
+func aptStateArgs(hostApt string) []string {
+	return []string{
+		"-o", "Dir::State::status=" + hostApt + "/dpkg/status",
+		"-o", "Dir::State::Lists=" + hostApt + "/lists",
+		"-o", "Dir::Etc=" + hostApt + "/etc-apt",
+	}
+}
+
+// aptPhasedPackages returns the set of package names apt is deferring due to a
+// phased rollout. Ubuntu ships -updates gradually, so these show up in
+// `apt list --upgradable` but are kept back by `apt upgrade`.
+func aptPhasedPackages() map[string]bool {
+	bin, ok := findCommand("apt-get", "apt")
+	if !ok {
+		return nil
+	}
+	args := []string{"-s", "upgrade"}
+	// apt's phasing decision is per-machine (seeded by the machine-id). A
+	// containerized agent has a different machine-id than the host, so pass the
+	// host's explicitly — otherwise the simulate computes the wrong rollout
+	// bucket and misses deferrals. Needs apt >= 3.0 (debian:13 base) to honor it.
+	if id := hostMachineID(); id != "" {
+		args = append(args, "-o", "APT::Machine-ID="+id)
+	}
+	if hostApt := os.Getenv("HOST_APT"); hostApt != "" {
+		args = append(args, aptStateArgs(hostApt)...)
+	}
+	cmd := exec.Command(bin, args...)
+	cmd.Env = append(cmd.Environ(), "LANG=C")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	return parseAptPhased(output)
+}
+
+// parseAptPhased extracts the package names under the "deferred due to phasing"
+// section of `apt-get -s upgrade` output.
+func parseAptPhased(output []byte) map[string]bool {
+	phased := map[string]bool{}
+	inSection := false
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.Contains(line, "deferred due to phasing") {
+			inSection = true
+			continue
+		}
+		if !inSection {
+			continue
+		}
+		// Entries are indented; the section ends at the first non-indented line.
+		if !strings.HasPrefix(line, " ") {
+			break
+		}
+		for _, name := range strings.Fields(line) {
+			phased[name] = true
+		}
+	}
+	return phased
+}
+
+// filterPhased removes any package whose name is in the phased set.
+func filterPhased(pkgs []PackageUpdate, phased map[string]bool) []PackageUpdate {
+	if len(phased) == 0 {
+		return pkgs
+	}
+	filtered := pkgs[:0]
+	for _, p := range pkgs {
+		if !phased[p.Name] {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
 }
 
 // pacman — Arch Linux

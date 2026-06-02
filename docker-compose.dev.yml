@@ -52,6 +52,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/host/proc:ro
       - /etc/os-release:/host/os-release:ro
+      # Host machine-id so apt's phased-update decision matches the host
+      - /etc/machine-id:/host/machine-id:ro
       - .:/host/compose
       # Mount host APT dirs (directories only — safe on non-Debian hosts)
       - /var/lib/dpkg:/host-apt/dpkg:ro
