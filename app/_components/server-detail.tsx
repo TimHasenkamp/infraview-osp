@@ -1,14 +1,25 @@
 "use client";
 
-import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Globe, Gauge, Pencil, Check, X, Copy } from "lucide-react";
+import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Globe, Gauge, Pencil, Check, X, Copy, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { StatusBadge } from "./status-badge";
 import { MetricGauge } from "./metric-gauge";
 import { AgentUpdateButton } from "./agent-update-button";
 import { useWSContext } from "../_providers/websocket-provider";
+import { deleteServer } from "../_lib/api-client";
 import type { Server } from "../_lib/types";
 import { formatBytes, timeAgo } from "../_lib/utils";
 
@@ -18,10 +29,25 @@ interface ServerDetailProps {
 
 export function ServerDetail({ server: initialServer }: ServerDetailProps) {
   const { servers: wsUpdates } = useWSContext();
+  const router = useRouter();
   const update = wsUpdates.get(initialServer.id);
   const [editing, setEditing] = useState(false);
   const [nameValue, setNameValue] = useState(initialServer.display_name ?? "");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteServer(initialServer.id);
+      toast.success("Server removed");
+      router.push("/");
+    } catch {
+      toast.error("Failed to remove server");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (editing) inputRef.current?.select();
@@ -96,10 +122,51 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
             <StatusBadge status={server.status} />
           </div>
         </div>
-        {server.status === "online" && (
-          <AgentUpdateButton serverId={server.id} />
-        )}
+        <div className="flex items-center gap-2">
+          {server.status === "online" && (
+            <AgentUpdateButton serverId={server.id} />
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-400"
+            onClick={() => setConfirmOpen(true)}
+            title="Remove server"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove this server?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes all data for{" "}
+              <span className="font-medium text-foreground">
+                {server.display_name ?? server.hostname}
+              </span>{" "}
+              — metrics, container info, alert events and its alert rules. If an
+              agent with this ID is still running, the server will reappear on its
+              next report.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {deleting ? "Removing..." : "Remove server"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <MetricCard

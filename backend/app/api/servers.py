@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-from app.models import Server, Container, Metric
+from app.models import Server, Container, Metric, AlertEvent, AlertRule
 from app.schemas.server import (
     ServerResponse, ContainerSchema,
     CPUMetrics, MemoryMetrics, DiskMetrics, NetworkMetrics, LoadMetrics,
@@ -152,6 +152,25 @@ async def rename_server(
     server.display_name = body.display_name.strip() or None
     await db.commit()
     return {"status": "ok", "display_name": server.display_name}
+
+
+@router.delete("/servers/{server_id}")
+async def delete_server(server_id: str, db: AsyncSession = Depends(get_db)):
+    """Remove a server and all its data (metrics, containers, alert events and
+    server-specific alert rules). If an agent with this ID is still running, the
+    server will reappear on its next snapshot — stop that agent first."""
+    result = await db.execute(select(Server).where(Server.id == server_id))
+    server = result.scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    await db.execute(delete(Metric).where(Metric.server_id == server_id))
+    await db.execute(delete(Container).where(Container.server_id == server_id))
+    await db.execute(delete(AlertEvent).where(AlertEvent.server_id == server_id))
+    await db.execute(delete(AlertRule).where(AlertRule.server_id == server_id))
+    await db.execute(delete(Server).where(Server.id == server_id))
+    await db.commit()
+    return {"status": "ok"}
 
 
 @router.put("/servers/{server_id}/tags")

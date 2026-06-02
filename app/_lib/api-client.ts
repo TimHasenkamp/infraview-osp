@@ -23,6 +23,10 @@ export async function getServer(id: string): Promise<Server> {
   return apiFetch<Server>(`servers/${id}`);
 }
 
+export async function deleteServer(id: string): Promise<void> {
+  await apiFetch(`servers/${id}`, { method: "DELETE" });
+}
+
 export async function getMetrics(
   serverId: string,
   range = "1h",

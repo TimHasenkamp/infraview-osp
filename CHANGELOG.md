@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.4 (2026-06-02)
+
+### Features
+
+- **Remove a server from the dashboard** — a trash button in the server detail header (with a confirmation dialog) deletes a server and all its data: metrics, container info, alert events and its server-specific alert rules. Useful for clearing out renamed or decommissioned agents. New `DELETE /api/servers/{id}` endpoint. Note: if an agent with that ID is still running, the server reappears on its next report — stop the agent first.
+
+---
+
 ## v0.3.3 (2026-06-02)
 
 ### Fixes
