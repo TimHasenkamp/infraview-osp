@@ -54,6 +54,26 @@ export async function containerAction(
   });
 }
 
+export async function ignoreContainerUpdate(
+  serverId: string,
+  containerId: string,
+  version: string
+): Promise<void> {
+  await apiFetch(`servers/${serverId}/containers/${containerId}/ignore-update`, {
+    method: "POST",
+    body: JSON.stringify({ version }),
+  });
+}
+
+export async function unignoreContainerUpdate(
+  serverId: string,
+  containerId: string
+): Promise<void> {
+  await apiFetch(`servers/${serverId}/containers/${containerId}/ignore-update`, {
+    method: "DELETE",
+  });
+}
+
 export async function getAlerts(): Promise<AlertRule[]> {
   return apiFetch<AlertRule[]>("alerts");
 }

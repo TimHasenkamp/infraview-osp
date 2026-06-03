@@ -14,6 +14,7 @@ from app.metrics import CONNECTED_AGENTS, METRICS_INGESTED
 from app.services.settings_service import get_setting
 from app.services.notification_service import send_email_alert, send_webhook_alert, send_gotify_alert, send_telegram_alert
 from app.services.alert_service import check_alerts
+from app.services.ignored_updates import get_ignored_versions, mask_ignored
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,13 @@ async def agent_websocket(websocket: WebSocket):
 
                 await _process_snapshot(snapshot)
 
+                async with async_session() as _s:
+                    ignored = await get_ignored_versions(_s, snapshot.agent_id)
+                containers_payload = [
+                    mask_ignored(c.model_dump(), ignored)
+                    for c in (snapshot.containers or [])
+                ]
+
                 await broadcast_to_dashboards({
                     "type": "metric_update",
                     "payload": {
@@ -76,7 +84,7 @@ async def agent_websocket(websocket: WebSocket):
                         "load15": snapshot.load.load15 if snapshot.load else 0.0,
                         "processes": [p.model_dump() for p in snapshot.processes] if snapshot.processes else [],
                         "updates": snapshot.updates.model_dump() if snapshot.updates else None,
-                        "containers": [c.model_dump() for c in snapshot.containers] if snapshot.containers else [],
+                        "containers": containers_payload,
                     },
                 })
 

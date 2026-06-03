@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Square, RotateCcw, MoreVertical, ArrowUpCircle } from "lucide-react";
+import { Play, Square, RotateCcw, MoreVertical, ArrowUpCircle, BellOff, Bell } from "lucide-react";
 import { formatBytes } from "../_lib/utils";
 import {
   Table,
@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContainerLogs } from "./container-logs";
 import { ComposePreviewDialog } from "./compose-preview-dialog";
-import { containerAction } from "../_lib/api-client";
+import { containerAction, ignoreContainerUpdate, unignoreContainerUpdate } from "../_lib/api-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { RefreshButton } from "./refresh-button";
@@ -52,6 +52,26 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
       toast.success(`Container ${action} command sent`);
     } catch {
       toast.error(`Failed to ${action} container`);
+    }
+  };
+
+  const handleIgnore = async (containerId: string, version: string) => {
+    try {
+      await ignoreContainerUpdate(serverId, containerId, version);
+      toast.success(`Ignoring update ${version}`);
+      router.refresh();
+    } catch {
+      toast.error("Failed to ignore update");
+    }
+  };
+
+  const handleUnignore = async (containerId: string) => {
+    try {
+      await unignoreContainerUpdate(serverId, containerId);
+      toast.success("Update no longer ignored");
+      router.refresh();
+    } catch {
+      toast.error("Failed to un-ignore update");
     }
   };
 
@@ -119,6 +139,28 @@ export function ContainerList({ containers, serverId }: ContainerListProps) {
                             latestVersion={container.latest_version ?? ""}
                             variant="menuitem"
                           />
+                          <DropdownMenuItem
+                            onClick={() => handleIgnore(container.id, container.latest_version ?? "")}
+                          >
+                            <BellOff className="h-4 w-4 mr-2" />
+                            Ignore this update
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    {container.update_ignored && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <span className="inline-flex items-center rounded-md border text-[10px] px-1.5 py-0 h-4 bg-zinc-500/10 text-zinc-400 border-zinc-500/20 shrink-0 cursor-pointer hover:bg-zinc-500/20 transition-colors" title={`Update ${container.latest_version ?? ""} ignored`}>
+                            <BellOff className="h-2.5 w-2.5 mr-0.5" />
+                            ignored
+                          </span>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => handleUnignore(container.id)}>
+                            <Bell className="h-4 w-4 mr-2" />
+                            Un-ignore ({container.latest_version})
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}

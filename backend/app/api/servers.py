@@ -3,17 +3,19 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-from app.models import Server, Container, Metric, AlertEvent, AlertRule
+from app.models import Server, Container, Metric, AlertEvent, AlertRule, IgnoredUpdate
 from app.schemas.server import (
     ServerResponse, ContainerSchema,
     CPUMetrics, MemoryMetrics, DiskMetrics, NetworkMetrics, LoadMetrics,
 )
 from app.ws.agent_handler import send_command_to_agent
+from app.services.ignored_updates import get_ignored_versions
 
 router = APIRouter()
 
 
-def _build_server_response(server, containers, latest_metric=None):
+def _build_server_response(server, containers, latest_metric=None, ignored=None):
+    ignored = ignored or {}
     cpu = None
     memory = None
     disk = None
@@ -72,7 +74,8 @@ def _build_server_response(server, containers, latest_metric=None):
                 state=c.state,
                 status=c.status or "",
                 created=int(c.created.timestamp()) if c.created else 0,
-                update_available=c.update_available or False,
+                update_available=bool(c.update_available) and ignored.get(c.name) != c.latest_version,
+                update_ignored=bool(c.update_available) and ignored.get(c.name) == c.latest_version,
                 latest_version=c.latest_version,
             )
             for c in containers
@@ -101,7 +104,8 @@ async def list_servers(db: AsyncSession = Depends(get_db)):
         )
         latest_metric = metric_result.scalar_one_or_none()
 
-        response.append(_build_server_response(server, containers, latest_metric))
+        ignored = await get_ignored_versions(db, server.id)
+        response.append(_build_server_response(server, containers, latest_metric, ignored))
     return response
 
 
@@ -125,7 +129,8 @@ async def get_server(server_id: str, db: AsyncSession = Depends(get_db)):
     )
     latest_metric = metric_result.scalar_one_or_none()
 
-    return _build_server_response(server, containers, latest_metric)
+    ignored = await get_ignored_versions(db, server.id)
+    return _build_server_response(server, containers, latest_metric, ignored)
 
 
 import re
@@ -168,6 +173,7 @@ async def delete_server(server_id: str, db: AsyncSession = Depends(get_db)):
     await db.execute(delete(Container).where(Container.server_id == server_id))
     await db.execute(delete(AlertEvent).where(AlertEvent.server_id == server_id))
     await db.execute(delete(AlertRule).where(AlertRule.server_id == server_id))
+    await db.execute(delete(IgnoredUpdate).where(IgnoredUpdate.server_id == server_id))
     await db.execute(delete(Server).where(Server.id == server_id))
     await db.commit()
     return {"status": "ok"}

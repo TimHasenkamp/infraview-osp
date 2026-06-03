@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.7 (2026-06-03)
+
+### Features
+
+- **Ignore container updates** — a detected container image update can now be dismissed from the container list ("Ignore this update" in the update menu). Ignored updates drop out of the update count and show a muted "ignored" tag with an "un-ignore" option. The specific version is remembered, so a later, newer version surfaces the update again. New `POST`/`DELETE /api/servers/{id}/containers/{cid}/ignore-update` endpoints.
+
+---
+
 ## v0.3.6 (2026-06-03)
 
 ### Fixes

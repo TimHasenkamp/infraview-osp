@@ -1,10 +1,10 @@
 from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-from app.models import Container
+from app.models import Container, IgnoredUpdate
 from app.schemas.server import ContainerSchema
 from app.ws.agent_handler import send_command_to_agent, request_container_logs, request_compose_preview, request_image_list, request_image_remove
 
@@ -80,6 +80,58 @@ async def compose_preview(
     if error and "not connected" in error.lower():
         raise HTTPException(status_code=503, detail=error)
     return result
+
+
+class IgnoreUpdateBody(BaseModel):
+    version: str
+
+
+async def _container_name(db: AsyncSession, server_id: str, container_id: str) -> str:
+    result = await db.execute(
+        select(Container).where(
+            Container.server_id == server_id, Container.id == container_id
+        )
+    )
+    container = result.scalar_one_or_none()
+    if not container:
+        raise HTTPException(status_code=404, detail="Container not found")
+    return container.name
+
+
+@router.post("/servers/{server_id}/containers/{container_id}/ignore-update")
+async def ignore_update(
+    server_id: str, container_id: str, body: IgnoreUpdateBody,
+    db: AsyncSession = Depends(get_db),
+):
+    name = await _container_name(db, server_id, container_id)
+    result = await db.execute(
+        select(IgnoredUpdate).where(
+            IgnoredUpdate.server_id == server_id,
+            IgnoredUpdate.container_name == name,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.ignored_version = body.version
+    else:
+        db.add(IgnoredUpdate(server_id=server_id, container_name=name, ignored_version=body.version))
+    await db.commit()
+    return {"status": "ok", "ignored_version": body.version}
+
+
+@router.delete("/servers/{server_id}/containers/{container_id}/ignore-update")
+async def unignore_update(
+    server_id: str, container_id: str, db: AsyncSession = Depends(get_db)
+):
+    name = await _container_name(db, server_id, container_id)
+    await db.execute(
+        delete(IgnoredUpdate).where(
+            IgnoredUpdate.server_id == server_id,
+            IgnoredUpdate.container_name == name,
+        )
+    )
+    await db.commit()
+    return {"status": "ok"}
 
 
 class RemoveImagesBody(BaseModel):

@@ -69,6 +69,7 @@ export interface ContainerInfo {
   status: string;
   created: number;
   update_available?: boolean;
+  update_ignored?: boolean;
   latest_version?: string | null;
   cpu_percent: number;
   memory_bytes: number;

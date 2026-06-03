@@ -81,6 +81,7 @@ class ContainerSchema(BaseModel):
     status: str
     created: int
     update_available: bool = False
+    update_ignored: bool = False
     latest_version: str | None = None
     cpu_percent: float = 0.0
     memory_bytes: int = 0
