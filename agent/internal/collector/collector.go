@@ -1,6 +1,9 @@
 package collector
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type CPUMetrics struct {
 	UsagePercent float64   `json:"usage_percent"`
@@ -76,20 +79,62 @@ type SystemSnapshot struct {
 	Containers []ContainerInfo `json:"containers"`
 }
 
+const publicIPTTL = 30 * time.Minute
+
 type Collector struct {
 	agentID  string
 	hostname string
 	diskPath string
-	publicIP string
+
+	mu         sync.Mutex
+	publicIP   string
+	publicIPAt time.Time
+	ipFetching bool
 }
 
 func New(agentID, hostname, diskPath string) *Collector {
-	return &Collector{
+	c := &Collector{
 		agentID:  agentID,
 		hostname: hostname,
 		diskPath: diskPath,
-		publicIP: fetchPublicIP(),
 	}
+	// Fetch in the background so a slow/failing lookup doesn't delay startup.
+	c.maybeRefreshPublicIP()
+	return c
+}
+
+// publicIPValue returns the cached public IP and triggers a background refresh
+// when it is empty or stale. Fetching only once at startup meant a transient
+// failure left the IP blank forever; this self-heals without blocking Collect().
+func (c *Collector) publicIPValue() string {
+	c.mu.Lock()
+	ip := c.publicIP
+	c.mu.Unlock()
+	c.maybeRefreshPublicIP()
+	return ip
+}
+
+func (c *Collector) maybeRefreshPublicIP() {
+	c.mu.Lock()
+	stale := c.publicIP == "" || time.Since(c.publicIPAt) > publicIPTTL
+	if !stale || c.ipFetching {
+		c.mu.Unlock()
+		return
+	}
+	c.ipFetching = true
+	c.mu.Unlock()
+
+	go func() {
+		ip := fetchPublicIP()
+		c.mu.Lock()
+		if ip != "" {
+			// Keep the last known good value if the lookup failed.
+			c.publicIP = ip
+			c.publicIPAt = time.Now()
+		}
+		c.ipFetching = false
+		c.mu.Unlock()
+	}()
 }
 
 func (c *Collector) Collect() (*SystemSnapshot, error) {
@@ -130,7 +175,7 @@ func (c *Collector) Collect() (*SystemSnapshot, error) {
 		Timestamp:  time.Now().Unix(),
 		Hostname:   c.hostname,
 		AgentID:    c.agentID,
-		PublicIP:   c.publicIP,
+		PublicIP:   c.publicIPValue(),
 		CPU:        *cpu,
 		Memory:     *mem,
 		Disk:       *disk,

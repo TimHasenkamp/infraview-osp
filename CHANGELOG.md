@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.6 (2026-06-03)
+
+### Fixes
+
+- **Public IP now appears reliably** — the agent fetched the public IP only once at startup, so a transient failure (network not ready yet, an IPv6 hiccup, or the provider being briefly unreachable) left it blank until the agent restarted. It is now refreshed in the background — on demand while empty and every 30 min otherwise — and tries multiple providers (ipify → ifconfig.me → icanhazip) so one being down no longer disables the feature. Requires an agent update.
+
+---
+
 ## v0.3.5 (2026-06-03)
 
 ### Fixes
