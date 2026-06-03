@@ -20,6 +20,8 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 # Each entry: (table, column, "ADD COLUMN" definition).
 _COLUMN_MIGRATIONS = [
     ("servers", "updates_available", "updates_available INTEGER NOT NULL DEFAULT 0"),
+    ("servers", "agent_version", "agent_version TEXT"),
+    ("servers", "agent_update_available", "agent_update_available INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

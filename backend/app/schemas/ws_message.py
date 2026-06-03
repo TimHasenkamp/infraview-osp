@@ -7,6 +7,8 @@ class SystemSnapshot(BaseModel):
     hostname: str
     agent_id: str
     public_ip: str | None = None
+    agent_version: str | None = None
+    agent_update_available: bool = False
     cpu: CPUMetrics
     memory: MemoryMetrics
     disk: DiskMetrics

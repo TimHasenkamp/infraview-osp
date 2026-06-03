@@ -65,10 +65,12 @@ type ContainerInfo struct {
 }
 
 type SystemSnapshot struct {
-	Timestamp  int64           `json:"timestamp"`
-	Hostname   string          `json:"hostname"`
-	AgentID    string          `json:"agent_id"`
-	PublicIP   string          `json:"public_ip,omitempty"`
+	Timestamp            int64  `json:"timestamp"`
+	Hostname             string `json:"hostname"`
+	AgentID              string `json:"agent_id"`
+	PublicIP             string `json:"public_ip,omitempty"`
+	AgentVersion         string `json:"agent_version,omitempty"`
+	AgentUpdateAvailable bool   `json:"agent_update_available"`
 	CPU        CPUMetrics      `json:"cpu"`
 	Memory     MemoryMetrics   `json:"memory"`
 	Disk       DiskMetrics     `json:"disk"`

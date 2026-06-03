@@ -93,6 +93,8 @@ export interface Server {
   containers: ContainerInfo[];
   updates_available?: number;
   active_alerts?: number;
+  agent_version?: string | null;
+  agent_update_available?: boolean;
 }
 
 export interface ServerResponse {

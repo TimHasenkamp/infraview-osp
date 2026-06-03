@@ -82,6 +82,8 @@ def _build_server_response(server, containers, latest_metric=None, ignored=None,
         ],
         updates_available=server.updates_available or 0,
         active_alerts=active_alerts,
+        agent_version=server.agent_version,
+        agent_update_available=bool(server.agent_update_available),
     )
 
 

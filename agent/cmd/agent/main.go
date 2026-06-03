@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -29,6 +30,11 @@ const (
 )
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v" || os.Args[1] == "version") {
+		fmt.Println("infraview-agent", version)
+		return
+	}
+
 	// Structured logging with zerolog
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05"}).
@@ -37,6 +43,7 @@ func main() {
 	cfg := config.Load()
 	log.Info().
 		Str("agent_id", cfg.AgentID).
+		Str("version", version).
 		Int("interval", cfg.Interval).
 		Str("backend", cfg.BackendURL).
 		Msg("InfraView Agent starting")
@@ -285,6 +292,9 @@ func main() {
 			snapshot.Containers = containers
 			containerErrLogged = false
 		}
+
+		snapshot.AgentVersion = version
+		snapshot.AgentUpdateAvailable = updater.UpdateAvailable(ctx, version)
 
 		if err := wsClient.SendSnapshot(snapshot); err != nil {
 			log.Error().Err(err).Msg("Send snapshot failed")

@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Globe, Gauge, Pencil, Check, X, Copy, Trash2 } from "lucide-react";
+import { ArrowLeft, Cpu, MemoryStick, HardDrive, Clock, Globe, Gauge, Pencil, Check, X, Copy, Trash2, ArrowUpCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -123,6 +124,17 @@ export function ServerDetail({ server: initialServer }: ServerDetailProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {server.agent_version && (
+            <span className="hidden sm:inline text-xs text-muted-foreground font-mono" title="Agent version">
+              agent {server.agent_version}
+            </span>
+          )}
+          {server.agent_update_available && (
+            <Badge variant="outline" className="gap-1 text-xs border-amber-500/40 bg-amber-950/50 text-amber-400" title="A newer agent version is available">
+              <ArrowUpCircle className="h-3 w-3" />
+              update
+            </Badge>
+          )}
           {server.status === "online" && (
             <AgentUpdateButton serverId={server.id} />
           )}

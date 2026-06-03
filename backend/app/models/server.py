@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime
+from sqlalchemy import String, Integer, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -19,3 +19,5 @@ class Server(Base):
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     public_ip: Mapped[str | None] = mapped_column(String, nullable=True)
     updates_available: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    agent_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    agent_update_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

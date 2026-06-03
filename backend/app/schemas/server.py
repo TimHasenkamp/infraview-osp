@@ -105,5 +105,7 @@ class ServerResponse(BaseModel):
     containers: list[ContainerSchema] = []
     updates_available: int = 0
     active_alerts: int = 0
+    agent_version: str | None = None
+    agent_update_available: bool = False
 
     model_config = {"from_attributes": True}

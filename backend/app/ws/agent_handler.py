@@ -286,6 +286,8 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                     disk_total_bytes=snapshot.disk.total_bytes,
                     public_ip=snapshot.public_ip or None,
                     updates_available=updates_available,
+                    agent_version=snapshot.agent_version,
+                    agent_update_available=snapshot.agent_update_available,
                 )
                 session.add(server)
             else:
@@ -296,6 +298,9 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                 server.memory_total_bytes = snapshot.memory.total_bytes
                 server.disk_total_bytes = snapshot.disk.total_bytes
                 server.updates_available = updates_available
+                server.agent_update_available = snapshot.agent_update_available
+                if snapshot.agent_version:
+                    server.agent_version = snapshot.agent_version
                 if snapshot.public_ip:
                     server.public_ip = snapshot.public_ip
 

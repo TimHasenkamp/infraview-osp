@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.9 (2026-06-03)
+
+### Features
+
+- **Agent update indicator** — the server detail header now shows the running agent version and an amber "update" badge when a newer InfraView release exists. The agent determines the latest version from GitHub (cached ~6h) and reports it in its snapshot; `infraview-agent --version` now prints the version too.
+
+### Notes
+
+- Adds `servers.agent_version` and `servers.agent_update_available` columns; existing databases are migrated automatically on startup.
+- The agent must be updated to report its version (older agents show no version). Update via the "Update Agent" button or by re-running the install script.
+
+---
+
 ## v0.3.8 (2026-06-03)
 
 ### Features
