@@ -1,5 +1,5 @@
 from typing import Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class CPUMetrics(BaseModel):
@@ -54,6 +54,14 @@ class UpdatesInfoSchema(BaseModel):
     package_manager: str = ""
     agent_mode: Literal["container", "native"] = "native"
     os_name: str = ""
+
+    @field_validator("packages", mode="before")
+    @classmethod
+    def _packages_none_to_empty(cls, v):
+        # Go marshals an empty/nil slice as JSON null, so an agent with no
+        # pending updates sends packages=null. Coerce that to [] instead of
+        # failing validation (which would drop the whole snapshot).
+        return v if v is not None else []
 
 
 class ProcessSchema(BaseModel):

@@ -182,8 +182,10 @@ func findCommand(candidates ...string) (string, bool) {
 }
 
 // parseLines runs parser over each non-empty line of output and returns matching packages.
+// Always returns a non-nil slice: a nil slice marshals to JSON null, which the
+// backend rejects (packages must be a list).
 func parseLines(output []byte, parser func(string) PackageUpdate) []PackageUpdate {
-	var pkgs []PackageUpdate
+	pkgs := []PackageUpdate{}
 	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
 		if p := parser(line); p.Name != "" {
 			pkgs = append(pkgs, p)

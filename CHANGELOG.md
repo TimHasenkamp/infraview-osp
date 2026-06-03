@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.5 (2026-06-03)
+
+### Fixes
+
+- **Agents on fully up-to-date hosts no longer disconnect-loop** — a host with no pending package updates makes the agent send `updates.packages: null` (Go marshals a nil slice as JSON `null`). The backend's snapshot schema required a list and rejected `null`, raising a validation error that dropped the agent WebSocket every ~10s in an endless reconnect loop — so that server never delivered live data (metrics, processes, updates). The backend now coerces `null` → `[]`, and the agent always sends an empty list. Updating the backend alone fixes existing agents.
+
+---
+
 ## v0.3.4 (2026-06-02)
 
 ### Features
