@@ -103,5 +103,7 @@ class ServerResponse(BaseModel):
     load: LoadMetrics | None = None
     tags: list[str] = []
     containers: list[ContainerSchema] = []
+    updates_available: int = 0
+    active_alerts: int = 0
 
     model_config = {"from_attributes": True}

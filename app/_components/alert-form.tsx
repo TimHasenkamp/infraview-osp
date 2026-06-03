@@ -19,7 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import type { AlertRule, NotifyChannel } from "../_lib/types";
+import { getServers } from "../_lib/api-client";
+import type { AlertRule, NotifyChannel, Server } from "../_lib/types";
+
+const ALL_SERVERS = "__all__";
 
 const CHANNELS: { value: NotifyChannel; label: string; icon: string }[] = [
   { value: "none",     label: "None",             icon: "—"  },
@@ -47,6 +50,8 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
 
+  const [serverId, setServerId] = useState<string | null>(rule?.server_id ?? null);
+  const [servers, setServers] = useState<Server[]>([]);
   const [metric, setMetric] = useState("cpu_percent");
   const [threshold, setThreshold] = useState("90");
   const [severity, setSeverity] = useState("warning");
@@ -58,9 +63,17 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
   const [testState, setTestState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [testError, setTestError] = useState("");
 
+  // Load the server list for the scope selector when the dialog opens.
+  useEffect(() => {
+    if (open) {
+      getServers().then(setServers).catch(() => setServers([]));
+    }
+  }, [open]);
+
   // Sync fields when rule changes (edit mode) or dialog opens
   useEffect(() => {
     if (open && rule) {
+      setServerId(rule.server_id ?? null);
       setMetric(rule.metric);
       setThreshold(String(rule.threshold));
       setSeverity(rule.severity);
@@ -77,7 +90,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      server_id: rule?.server_id ?? null,
+      server_id: serverId,
       metric: metric as AlertRule["metric"],
       operator: ">",
       threshold: parseFloat(threshold),
@@ -95,6 +108,7 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
   };
 
   const resetForm = () => {
+    setServerId(null);
     setMetric("cpu_percent");
     setThreshold("90");
     setSeverity("warning");
@@ -157,6 +171,26 @@ export function AlertForm({ onSubmit, rule, open: controlledOpen, onOpenChange }
           <DialogTitle>{isEdit ? "Edit Alert Rule" : "Create Alert Rule"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          <div className="space-y-2">
+            <Label>Applies to</Label>
+            <Select
+              value={serverId ?? ALL_SERVERS}
+              onValueChange={(v) => v && setServerId(v === ALL_SERVERS ? null : v)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_SERVERS}>All servers</SelectItem>
+                {servers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.display_name ?? s.hostname}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-2">
             <Label>Metric</Label>

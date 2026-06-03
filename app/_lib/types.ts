@@ -91,6 +91,8 @@ export interface Server {
   load: LoadMetrics;
   tags: string[];
   containers: ContainerInfo[];
+  updates_available?: number;
+  active_alerts?: number;
 }
 
 export interface ServerResponse {

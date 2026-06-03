@@ -273,6 +273,7 @@ async def _process_snapshot(snapshot: SystemSnapshot):
             server = result.scalar_one_or_none()
 
             now = datetime.utcnow()
+            updates_available = snapshot.updates.available if snapshot.updates else 0
             if server is None:
                 server = Server(
                     id=snapshot.agent_id,
@@ -284,6 +285,7 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                     memory_total_bytes=snapshot.memory.total_bytes,
                     disk_total_bytes=snapshot.disk.total_bytes,
                     public_ip=snapshot.public_ip or None,
+                    updates_available=updates_available,
                 )
                 session.add(server)
             else:
@@ -293,6 +295,7 @@ async def _process_snapshot(snapshot: SystemSnapshot):
                 server.cpu_cores = snapshot.cpu.core_count
                 server.memory_total_bytes = snapshot.memory.total_bytes
                 server.disk_total_bytes = snapshot.disk.total_bytes
+                server.updates_available = updates_available
                 if snapshot.public_ip:
                     server.public_ip = snapshot.public_ip
 

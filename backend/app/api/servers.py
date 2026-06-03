@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Server, Container, Metric, AlertEvent, AlertRule, IgnoredUpdate
@@ -14,7 +14,7 @@ from app.services.ignored_updates import get_ignored_versions
 router = APIRouter()
 
 
-def _build_server_response(server, containers, latest_metric=None, ignored=None):
+def _build_server_response(server, containers, latest_metric=None, ignored=None, active_alerts=0):
     ignored = ignored or {}
     cpu = None
     memory = None
@@ -80,6 +80,8 @@ def _build_server_response(server, containers, latest_metric=None, ignored=None)
             )
             for c in containers
         ],
+        updates_available=server.updates_available or 0,
+        active_alerts=active_alerts,
     )
 
 
@@ -87,6 +89,13 @@ def _build_server_response(server, containers, latest_metric=None, ignored=None)
 async def list_servers(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Server))
     servers = result.scalars().all()
+
+    counts_result = await db.execute(
+        select(AlertEvent.server_id, func.count())
+        .where(AlertEvent.resolved == False)
+        .group_by(AlertEvent.server_id)
+    )
+    alert_counts = {sid: n for sid, n in counts_result.all()}
 
     response = []
     for server in servers:
@@ -105,7 +114,9 @@ async def list_servers(db: AsyncSession = Depends(get_db)):
         latest_metric = metric_result.scalar_one_or_none()
 
         ignored = await get_ignored_versions(db, server.id)
-        response.append(_build_server_response(server, containers, latest_metric, ignored))
+        response.append(_build_server_response(
+            server, containers, latest_metric, ignored, alert_counts.get(server.id, 0)
+        ))
     return response
 
 
@@ -130,7 +141,13 @@ async def get_server(server_id: str, db: AsyncSession = Depends(get_db)):
     latest_metric = metric_result.scalar_one_or_none()
 
     ignored = await get_ignored_versions(db, server.id)
-    return _build_server_response(server, containers, latest_metric, ignored)
+    alerts_result = await db.execute(
+        select(func.count())
+        .select_from(AlertEvent)
+        .where(AlertEvent.server_id == server.id, AlertEvent.resolved == False)
+    )
+    active_alerts = alerts_result.scalar() or 0
+    return _build_server_response(server, containers, latest_metric, ignored, active_alerts)
 
 
 import re

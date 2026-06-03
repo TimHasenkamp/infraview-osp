@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.8 (2026-06-03)
+
+### Features
+
+- **Per-server alert rules** — an alert rule can now be scoped to a specific server (or all servers) via the "Applies to" selector in the alert form. The backend already evaluated `server_id`; this exposes it in the UI.
+- **At-a-glance overview on the dashboard** — each server card now shows two badges: available updates (container image updates **plus** system/apt updates) and active alerts (open, unresolved events). Acknowledging/resolving an alert (on the Alerts page or a server's detail) clears it from the count.
+
+### Notes
+
+- Adds a `servers.updates_available` column; existing databases are migrated automatically on startup (no manual step).
+
+---
+
 ## v0.3.7 (2026-06-03)
 
 ### Features

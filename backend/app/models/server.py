@@ -18,3 +18,4 @@ class Server(Base):
     tags: Mapped[str | None] = mapped_column(String, nullable=True, default="")
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     public_ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    updates_available: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
