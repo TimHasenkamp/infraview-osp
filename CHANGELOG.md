@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.10 (2026-06-03)
+
+### Fixes
+
+- **Public IP is now actually shown** — the server API response never included the `public_ip` field, so the dashboard always displayed "—" even though the agent reported the IP and the backend stored it. It is now returned (REST `/servers` and `/servers/{id}`). Together with the v0.3.6 agent-side fetch fix, the public IP appears reliably (reload the page after updating). Backend-only fix.
+
+---
+
 ## v0.3.9 (2026-06-03)
 
 ### Features
